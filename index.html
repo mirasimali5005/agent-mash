@@ -2,456 +2,1256 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Agent Mash</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
+<meta name="description" content="Searchable home for your ChatGPT, Claude and Gemini chats">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agent Mash">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef0f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14151c" media="(prefers-color-scheme: dark)">
 <style>
+/* ===================== Tokens ===================== */
 :root{
-  --bg:#f6f6f4;--panel:#fff;--text:#1d1d1f;--muted:#6b6b70;--line:#e3e3e0;--accent:#3b5bdb;--accent-soft:#e8edff;
-  --claude:#d97757;--chatgpt:#10a37f;--gemini:#4285f4;--other:#8a8a8f;--danger:#c92a2a;
-  --radius:10px;--shadow:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Inter, system-ui, sans-serif;
+  --text:#1c1c1e; --text-2:rgba(60,60,67,.72); --text-3:rgba(60,60,67,.45);
+  --accent:#007aff; --accent-text:#fff; --accent-soft:rgba(0,122,255,.14);
+  --danger:#ff3b30; --ok:#34c759; --warn:#ff9f0a;
+  --chatgpt:#10a37f; --claude:#d97757; --gemini:#4285f4; --other:#8e8e93;
+  --wall: #e9ecf4;
+  --blob1:#ffcfa8; --blob2:#a9c8ff; --blob3:#c8f0d8; --blob4:#f3c4ff;
+  --glass: rgba(255,255,255,.52);
+  --glass-strong: rgba(255,255,255,.74);
+  --glass-thin: rgba(255,255,255,.34);
+  --glass-hover: rgba(255,255,255,.7);
+  --stroke: rgba(255,255,255,.75);
+  --edge: rgba(0,0,0,.07);
+  --hi: rgba(255,255,255,.85);
+  --field: rgba(118,118,128,.12);
+  --sep: rgba(60,60,67,.14);
+  --shadow: 0 12px 40px -12px rgba(30,40,80,.22), 0 2px 6px -2px rgba(30,40,80,.08);
+  --shadow-lg: 0 30px 80px -20px rgba(20,25,60,.35), 0 8px 24px -8px rgba(20,25,60,.18);
+  --mark: rgba(255,214,10,.55);
+  color-scheme: light;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#141416;--panel:#1d1d20;--text:#ececef;--muted:#9a9aa2;--line:#2e2e33;--accent:#7b93ff;--accent-soft:#252c47;--shadow:none;
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --text:#f5f5f7; --text-2:rgba(235,235,245,.68); --text-3:rgba(235,235,245,.4);
+  --accent:#0a84ff; --accent-soft:rgba(10,132,255,.22);
+  --wall:#101119; --blob1:#5b2b6e; --blob2:#14336b; --blob3:#0f4a45; --blob4:#5a2238;
+  --glass: rgba(40,40,48,.48); --glass-strong: rgba(44,44,52,.78); --glass-thin: rgba(40,40,48,.3); --glass-hover: rgba(60,60,70,.6);
+  --stroke: rgba(255,255,255,.14); --edge: rgba(0,0,0,.4); --hi: rgba(255,255,255,.16);
+  --field: rgba(118,118,128,.24); --sep: rgba(255,255,255,.1);
+  --shadow: 0 12px 40px -12px rgba(0,0,0,.6), 0 2px 6px -2px rgba(0,0,0,.4);
+  --shadow-lg: 0 30px 80px -20px rgba(0,0,0,.8), 0 8px 24px -8px rgba(0,0,0,.5);
+  --mark: rgba(255,214,10,.35);
+  color-scheme: dark;
 }}
+:root[data-theme="dark"]{
+  --text:#f5f5f7; --text-2:rgba(235,235,245,.68); --text-3:rgba(235,235,245,.4);
+  --accent:#0a84ff; --accent-soft:rgba(10,132,255,.22);
+  --wall:#101119; --blob1:#5b2b6e; --blob2:#14336b; --blob3:#0f4a45; --blob4:#5a2238;
+  --glass: rgba(40,40,48,.48); --glass-strong: rgba(44,44,52,.78); --glass-thin: rgba(40,40,48,.3); --glass-hover: rgba(60,60,70,.6);
+  --stroke: rgba(255,255,255,.14); --edge: rgba(0,0,0,.4); --hi: rgba(255,255,255,.16);
+  --field: rgba(118,118,128,.24); --sep: rgba(255,255,255,.1);
+  --shadow: 0 12px 40px -12px rgba(0,0,0,.6), 0 2px 6px -2px rgba(0,0,0,.4);
+  --shadow-lg: 0 30px 80px -20px rgba(0,0,0,.8), 0 8px 24px -8px rgba(0,0,0,.5);
+  --mark: rgba(255,214,10,.35);
+  color-scheme: dark;
+}
+
+/* ===================== Base ===================== */
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-button,input,select,textarea{font:inherit;color:inherit}
-button{cursor:pointer}
-.app{display:grid;grid-template-columns:240px 1fr;height:100vh}
-aside{border-right:1px solid var(--line);padding:16px 12px;overflow:auto;background:var(--panel)}
-.brand{font-weight:700;font-size:16px;padding:0 8px 14px;display:flex;align-items:center;gap:8px}
-.nav-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 8px 6px;display:flex;justify-content:space-between;align-items:center}
-.nav-h button{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 4px}
-.nav a{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:7px;color:inherit;text-decoration:none;cursor:pointer;user-select:none}
-.nav a:hover{background:var(--bg)}
-.nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-.nav .count{color:var(--muted);font-size:12px}
-.nav a .del{visibility:hidden;border:0;background:none;color:var(--muted);padding:0 2px}
-.nav a:hover .del{visibility:visible}
-main{display:flex;flex-direction:column;min-width:0;height:100vh}
-.top{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel)}
-.search{flex:1;min-width:200px;position:relative}
-.search input{width:100%;padding:10px 12px 10px 34px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);outline:none}
-.search input:focus{border-color:var(--accent)}
-.search::before{content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-52%);color:var(--muted);font-size:17px}
-.kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
-.btn{border:1px solid var(--line);background:var(--panel);padding:8px 12px;border-radius:8px;white-space:nowrap}
-.btn:hover{border-color:var(--muted)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.danger{color:var(--danger)}
-.chips{padding:10px 20px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 11px;font-size:13px;display:inline-flex;gap:6px;align-items:center}
-.chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
-.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
-.spacer{flex:1}
-.view-title{font-weight:600;font-size:13px;color:var(--muted)}
-.list{padding:12px 20px 40px;overflow:auto;flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;align-content:start}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;cursor:pointer;position:relative;border-left:4px solid var(--c)}
-.card:hover,.card.sel{border-color:var(--accent);border-left-color:var(--c)}
-.card.sel{outline:2px solid var(--accent-soft)}
-.card .t{font-weight:600;padding-right:56px;word-break:break-word}
-.card .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.card .notes{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tag{background:var(--bg);border-radius:5px;padding:0 6px;font-size:12px}
-.badge{font-size:11px;border:1px solid var(--line);border-radius:5px;padding:0 5px}
-.actions{position:absolute;top:8px;right:8px;display:flex;gap:2px}
-.actions button{border:0;background:none;color:var(--muted);padding:3px 5px;border-radius:5px;font-size:14px}
-.actions button:hover{background:var(--bg);color:var(--text)}
-.actions .pin.on{color:#e8a400}
-mark{background:#ffe066;color:inherit;border-radius:2px}
-@media (prefers-color-scheme:dark){mark{background:#6b5a00}}
-.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:60px 20px}
-.empty h2{color:var(--text);font-size:18px;margin:0 0 8px}
-dialog{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--text);width:min(520px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.25)}
-dialog::backdrop{background:rgba(0,0,0,.35)}
-.dlg{padding:20px;display:flex;flex-direction:column;gap:12px}
-.dlg h3{margin:0}
-.dlg label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
-.dlg input,.dlg select,.dlg textarea{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none}
-.dlg input:focus,.dlg textarea:focus,.dlg select:focus{border-color:var(--accent)}
-.row{display:flex;gap:10px}.row>*{flex:1}
-.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg button{flex:1;border:0;background:var(--bg);padding:8px}
-.seg button.on{background:var(--accent);color:#fff}
-.foot{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
-.hint{font-size:12px;color:var(--muted);margin:0}
-code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px}
-.bm{display:inline-block;padding:7px 12px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;cursor:grab}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
-.toast.show{opacity:1}
-.menu-btn{display:none}
-@media (max-width:760px){
-  .app{grid-template-columns:1fr}
-  aside{position:fixed;inset:0 30% 0 0;z-index:5;transform:translateX(-100%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.3)}
-  aside.open{transform:none}
-  .menu-btn{display:inline-block}
-  .top{padding:10px 16px}.chips{padding:10px 16px 0}.list{padding:12px 16px 40px;grid-template-columns:1fr}
-  .kbd{display:none}
+body{
+  font:13px/1.45 var(--font); color:var(--text); background:var(--wall);
+  -webkit-font-smoothing:antialiased; overflow:hidden; letter-spacing:-.003em;
+}
+.wallpaper{position:fixed;inset:-10%;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(42% 38% at 12% 18%, var(--blob1) 0, transparent 70%),
+    radial-gradient(40% 40% at 88% 12%, var(--blob2) 0, transparent 70%),
+    radial-gradient(45% 45% at 78% 88%, var(--blob3) 0, transparent 70%),
+    radial-gradient(40% 40% at 18% 90%, var(--blob4) 0, transparent 70%),
+    var(--wall);
+  filter:saturate(1.1);
+}
+button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
+button{cursor:default;-webkit-tap-highlight-color:transparent}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+::selection{background:var(--accent-soft)}
+
+/* ===================== Liquid Glass ===================== */
+.glass{
+  position:relative; background:var(--glass);
+  -webkit-backdrop-filter:blur(30px) saturate(190%); backdrop-filter:blur(30px) saturate(190%);
+  border:1px solid var(--stroke);
+  box-shadow: inset 0 1px 0 var(--hi), inset 0 -1px 0 rgba(255,255,255,.06), 0 0 0 .5px var(--edge), var(--shadow);
+}
+.glass.sheen::before{ /* specular highlight across the top-left edge */
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(140deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,.08) 28%, transparent 50%);
+  mix-blend-mode:overlay; opacity:.9;
+}
+@media (prefers-reduced-transparency: reduce){
+  .glass{ -webkit-backdrop-filter:none; backdrop-filter:none; background:var(--glass-strong) }
+}
+
+/* ===================== Layout ===================== */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:248px 1fr;gap:10px;height:100vh;height:100dvh;padding:10px;
+  padding-left:max(10px, env(safe-area-inset-left));padding-right:max(10px, env(safe-area-inset-right))}
+.app.collapsed{grid-template-columns:0 1fr;gap:0}
+.app.collapsed aside{opacity:0;pointer-events:none;transform:translateX(-12px)}
+
+aside{border-radius:22px;padding:14px 10px 10px;display:flex;flex-direction:column;min-height:0;transition:opacity .2s, transform .25s}
+.brand{display:flex;align-items:center;gap:9px;padding:2px 8px 12px;font-weight:650;font-size:14px}
+.brand img{width:24px;height:24px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.side-scroll{overflow:auto;flex:1;margin:0 -4px;padding:0 4px;scrollbar-width:none}
+.side-scroll::-webkit-scrollbar{display:none}
+.sec{font-size:11px;font-weight:600;color:var(--text-3);margin:14px 10px 4px;display:flex;justify-content:space-between;align-items:center}
+.sec button{border:0;background:none;color:var(--text-3);padding:0 2px;border-radius:5px;display:flex}
+.sec button:hover{color:var(--text-2);background:var(--field)}
+.nav-item{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:9px;color:var(--text);user-select:none;-webkit-user-select:none;cursor:default;min-height:28px;border:1px solid transparent}
+.nav-item svg{color:var(--accent)}
+.nav-item .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item .ct{color:var(--text-3);font-size:12px;font-variant-numeric:tabular-nums}
+.nav-item:hover{background:var(--glass-thin)}
+.nav-item.on{background:var(--accent-soft)}
+.nav-item.on .lbl{font-weight:600}
+.nav-item.drop{border-color:var(--accent);background:var(--accent-soft)}
+.nav-item .x{display:none;border:0;background:none;color:var(--text-3);padding:0;border-radius:4px}
+.nav-item:hover .x{display:flex}
+.nav-item:hover .x + .ct{display:none}
+.side-foot{border-top:1px solid var(--sep);margin-top:8px;padding-top:8px;display:flex;flex-direction:column;gap:2px}
+.ai-dot{width:7px;height:7px;border-radius:50%;background:var(--text-3)}
+.ai-dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(52,199,89,.18)}
+
+main{display:flex;flex-direction:column;min-width:0;min-height:0;gap:10px}
+.toolbar{border-radius:18px;padding:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tb-title{display:flex;flex-direction:column;line-height:1.15;padding:0 6px;min-width:0}
+.tb-title b{font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.tb-title span{font-size:11px;color:var(--text-2)}
+.flex{flex:1}
+
+.icon-btn{border:0;background:transparent;height:30px;min-width:30px;padding:0 8px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:var(--text);white-space:nowrap}
+.icon-btn:hover{background:var(--field)}
+.icon-btn:active{transform:scale(.97)}
+.pill{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--stroke);background:var(--glass-thin);display:inline-flex;align-items:center;gap:6px;box-shadow:inset 0 1px 0 var(--hi), 0 0 0 .5px var(--edge);white-space:nowrap}
+.pill:hover{background:var(--glass-hover)}
+.pill.primary{background:var(--accent);color:var(--accent-text);border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 4px 14px -4px rgba(0,122,255,.6)}
+.pill.primary:hover{filter:brightness(1.08)}
+.pill:disabled{opacity:.5}
+
+.search{position:relative;flex:1 1 260px;max-width:520px;min-width:180px}
+.search input{width:100%;height:32px;border-radius:999px;border:1px solid transparent;background:var(--field);padding:0 54px 0 32px;outline:none;transition:box-shadow .15s, background .15s}
+.search input:focus{background:var(--glass-strong);box-shadow:0 0 0 3.5px var(--accent-soft);border-color:var(--accent)}
+.search > svg{position:absolute;left:11px;top:8px;color:var(--text-2);width:15px;height:15px}
+.search kbd{position:absolute;right:10px;top:7px;font:11px var(--font);color:var(--text-3);border:1px solid var(--sep);border-radius:5px;padding:0 5px;line-height:16px}
+
+.seg{display:inline-flex;padding:2px;border-radius:10px;background:var(--field);gap:2px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{border:0;background:transparent;height:26px;padding:0 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;color:var(--text)}
+.seg button.on{background:var(--glass-strong);box-shadow:0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px var(--edge), inset 0 1px 0 var(--hi);font-weight:550}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15)}
+
+/* ===================== Cards ===================== */
+.content{flex:1;overflow:auto;border-radius:22px;padding:4px 2px 30px;scroll-padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:2px}
+.ai-row{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px}
+.ai-row .t{flex:1;color:var(--text-2)}
+.card{border-radius:18px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:7px;cursor:default;transition:transform .15s ease, box-shadow .15s, background .15s;outline:none;min-width:0}
+.card:hover{background:var(--glass-hover);transform:translateY(-1px)}
+.card.sel{box-shadow:inset 0 1px 0 var(--hi), 0 0 0 2px var(--accent), var(--shadow)}
+.card.dragging{opacity:.5}
+.card-h{display:flex;align-items:flex-start;gap:10px}
+.av{width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 2px 6px -2px rgba(0,0,0,.3)}
+.card-t{flex:1;min-width:0}
+.card-t b{display:block;font-size:13.5px;font-weight:620;line-height:1.3;word-break:break-word}
+.card-t small{color:var(--text-2);font-size:11.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.card .sum{color:var(--text-2);font-size:12.5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--field);color:var(--text-2);white-space:nowrap}
+.chip.mode{display:inline-flex;gap:4px;align-items:center}
+.chip.mode svg{width:11px;height:11px}
+.card-actions{position:absolute;top:10px;right:10px;display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.card:hover .card-actions,.card.sel .card-actions{opacity:1}
+.card-actions button{border:0;background:var(--glass-strong);width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--text-2);box-shadow:0 0 0 .5px var(--edge)}
+.card-actions button:hover{color:var(--text)}
+.card-actions .on{color:#ff9f0a}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+.empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--text-2);border-radius:22px}
+.empty h2{color:var(--text);font-size:19px;margin:6px 0 6px;font-weight:650}
+.empty .big{width:54px;height:54px;border-radius:14px;margin:0 auto 6px}
+
+/* ===================== Sheets / dialogs ===================== */
+dialog{border:0;padding:0;background:transparent;color:var(--text);max-width:none;max-height:none;overflow:visible}
+dialog::backdrop{background:rgba(10,12,20,.22);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+dialog[open] .sheet{animation:drop .22s cubic-bezier(.2,.9,.3,1.15)}
+@keyframes drop{from{transform:translateY(-14px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.sheet{width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 40px);overflow:auto;border-radius:24px;padding:20px 22px;background:var(--glass-strong);box-shadow:inset 0 1px 0 var(--hi), 0 0 0 .5px var(--edge), var(--shadow-lg)}
+.sheet h3{margin:0 0 2px;font-size:17px;font-weight:650}
+.sheet .sub{color:var(--text-2);margin:0 0 14px;font-size:12.5px}
+.form{display:grid;grid-template-columns:110px 1fr;gap:9px 12px;align-items:center}
+.form > label{text-align:right;color:var(--text-2);font-size:12.5px}
+.form > label.top{align-self:start;padding-top:6px}
+.field{width:100%;border:1px solid transparent;background:var(--field);border-radius:8px;padding:6px 9px;outline:none;min-height:30px;transition:box-shadow .15s}
+.field:focus{box-shadow:0 0 0 3.5px var(--accent-soft);border-color:var(--accent);background:var(--glass-strong)}
+textarea.field{resize:vertical;line-height:1.4}
+.hint{font-size:11.5px;color:var(--text-2);margin:0}
+.hint.full{grid-column:1/-1}
+.span2{grid-column:2}
+.sheet-foot{display:flex;align-items:center;gap:8px;margin-top:18px}
+.ai-bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:linear-gradient(120deg, rgba(0,122,255,.12), rgba(175,82,222,.12));border:1px solid var(--stroke);font-size:12.5px}
+.ai-bar .t{flex:1;color:var(--text-2)}
+.ai-bar svg{color:#af52de}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:sp .7s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+details.ctx summary{cursor:default;color:var(--text-2);font-size:12px;list-style:none;display:flex;gap:6px;align-items:center}
+details.ctx summary::-webkit-details-marker{display:none}
+details.ctx summary::before{content:"›";display:inline-block;transition:transform .15s;font-size:15px}
+details.ctx[open] summary::before{transform:rotate(90deg)}
+details.ctx textarea{margin-top:6px}
+.tabs{display:flex;justify-content:center;margin:2px 0 16px}
+.tabpane{display:none}.tabpane.on{display:block}
+.tabpane h4{margin:14px 0 6px;font-size:13px}
+.tabpane p{margin:0 0 8px;color:var(--text-2);font-size:12.5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bm{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;background:linear-gradient(135deg,#5e8bff,#a35cff);color:#fff;text-decoration:none;font-weight:600;cursor:grab;box-shadow:0 6px 18px -6px rgba(110,90,255,.7), inset 0 1px 0 rgba(255,255,255,.35)}
+.status-row{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--sep)}
+.status-row:last-child{border-bottom:0}
+.status-row .ok{color:var(--ok)}.status-row .no{color:var(--warn)}
+.status-row div{flex:1}
+.status-row b{display:block;font-weight:600}
+.status-row span{color:var(--text-2);font-size:12px}
+code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(--field);padding:1px 5px;border-radius:5px}
+.switch{position:relative;width:38px;height:22px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;border-radius:999px;background:var(--field);transition:.2s;box-shadow:inset 0 0 0 .5px var(--edge)}
+.switch span::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s}
+.switch input:checked + span{background:var(--ok)}
+.switch input:checked + span::after{transform:translateX(16px)}
+
+/* ===================== Menu & toast ===================== */
+.menu{position:fixed;z-index:50;min-width:210px;padding:5px;border-radius:12px;background:var(--glass-strong);display:none}
+.menu.on{display:block;animation:pop .12s ease-out}
+@keyframes pop{from{opacity:0;transform:scale(.97)}}
+.menu button{display:flex;width:100%;align-items:center;gap:9px;border:0;background:none;padding:5px 9px;border-radius:7px;text-align:left}
+.menu button:hover{background:var(--accent);color:#fff}
+.menu button.danger{color:var(--danger)}
+.menu button.danger:hover{background:var(--danger);color:#fff}
+.menu hr{border:0;border-top:1px solid var(--sep);margin:4px 6px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;z-index:60;padding:9px 10px 9px 16px;border-radius:999px;display:flex;align-items:center;gap:10px;transition:.25s cubic-bezier(.2,.9,.3,1.2);pointer-events:none;max-width:calc(100vw - 30px)}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{border:0;background:var(--accent);color:#fff;border-radius:999px;padding:4px 11px;font-weight:600}
+.toast button:empty{display:none}
+.drop-overlay{position:fixed;inset:10px;z-index:40;border-radius:24px;border:2px dashed var(--accent);background:var(--accent-soft);display:none;place-items:center;font-size:18px;font-weight:600;color:var(--accent);pointer-events:none}
+.drop-overlay.on{display:grid}
+
+/* ===================== Mobile ===================== */
+.only-mobile{display:none}
+@media (max-width: 780px){
+  .app{grid-template-columns:1fr;padding:8px}
+  #side{position:fixed;z-index:30;top:8px;bottom:8px;left:8px;width:min(300px,82vw);transform:translateX(-110%);transition:transform .25s;background:var(--glass-strong)}
+  #side.open{transform:none}
+  .app.collapsed{grid-template-columns:1fr}
+  .only-mobile{display:inline-flex}
+  .hide-mobile{display:none!important}
+  .search{order:5;flex-basis:100%;max-width:none}
+  .seg.prov{order:6;flex-basis:100%}
+  .grid{grid-template-columns:1fr}
+  .form{grid-template-columns:1fr}
+  .form > label{text-align:left;margin-bottom:-5px}
+  .span2{grid-column:1}
+  .card-actions{opacity:1}
+  .search kbd{display:none}
 }
 </style>
 </head>
 <body>
-<div class="app">
-  <aside id="side">
-    <div class="brand">🗂️ Agent Mash</div>
-    <div class="nav" id="views"></div>
-    <div class="nav-h">Folders <button id="addFolder" title="New folder">+</button></div>
-    <div class="nav" id="folders"></div>
-    <div class="nav-h">Tags</div>
-    <div class="nav" id="tags"></div>
-    <div class="nav-h">Data</div>
-    <div class="nav">
-      <a id="openSettings">⚙️ Settings & capture</a>
-      <a id="exportBtn">⬇️ Export backup</a>
-      <a id="importBtn">⬆️ Import backup</a>
+<div class="wallpaper"></div>
+
+<div class="app" id="app">
+  <aside class="glass sheen" id="side">
+    <div class="brand"><img src="icon.svg" alt="">Agent Mash</div>
+    <div class="side-scroll">
+      <div id="nav-lib"></div>
+      <div class="sec">Folders <button id="addFolder" title="New folder"></button></div>
+      <div id="nav-folders"></div>
+      <div class="sec" id="tagsHead">Tags</div>
+      <div id="nav-tags"></div>
     </div>
-    <input type="file" id="importFile" accept="application/json" hidden>
+    <div class="side-foot">
+      <div class="nav-item" id="openSettings"><svg class="i"><use href="#i-gear"/></svg><span class="lbl">Settings</span><span class="ai-dot" id="aiDot" title="Claude AI"></span></div>
+    </div>
   </aside>
+
   <main>
-    <div class="top">
-      <button class="btn menu-btn" id="menuBtn">☰</button>
-      <div class="search"><input id="q" placeholder="Search titles, notes, tags, folders…" autocomplete="off"><span class="kbd">/</span></div>
-      <button class="btn" id="openAll" title="Open every chat in this view">Open all</button>
-      <button class="btn primary" id="addBtn">+ Add chat</button>
+    <div class="toolbar glass sheen">
+      <button class="icon-btn" id="toggleSide" title="Toggle sidebar"><svg class="i"><use href="#i-sidebar"/></svg></button>
+      <div class="tb-title"><b id="viewTitle">All Chats</b><span id="viewSub"></span></div>
+      <div class="search">
+        <svg class="i"><use href="#i-search"/></svg>
+        <input id="q" placeholder="Search chats, topics, notes…" autocomplete="off" spellcheck="false">
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="seg prov" id="provSeg"></div>
+      <span class="flex hide-mobile"></span>
+      <button class="pill hide-mobile" id="openAll" title="Open every chat in this view"><svg class="i"><use href="#i-stack"/></svg>Open all</button>
+      <button class="pill primary" id="addBtn" title="Add chat (N)"><svg class="i"><use href="#i-plus"/></svg>Add</button>
     </div>
-    <div class="chips" id="chips"></div>
-    <div class="list" id="list"></div>
+    <div class="content" id="content"><div class="grid" id="grid"></div></div>
   </main>
 </div>
 
-<dialog id="editDlg"><form class="dlg" method="dialog" id="editForm">
-  <h3 id="editTitle">Add chat</h3>
-  <label>Chat link<input name="url" required placeholder="https://claude.ai/chat/…  ·  https://chatgpt.com/c/…  ·  https://gemini.google.com/app/…"></label>
-  <label>Title<input name="title" required placeholder="What is this chat about?"></label>
-  <div class="row">
-    <label>Provider<select name="provider"></select></label>
-    <label>Folder<input name="folder" list="folderList" placeholder="e.g. Work/Startup"></label>
+<!-- Add / edit sheet -->
+<dialog id="editDlg"><form class="sheet" method="dialog" id="editForm" autocomplete="off">
+  <h3 id="editTitle">Add Chat</h3>
+  <p class="sub" id="editSub">Paste a link from ChatGPT, Claude or Gemini.</p>
+  <div class="form">
+    <div class="ai-bar" id="aiBar" hidden><svg class="i"><use href="#i-sparkles"/></svg><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
+    <label for="f-url">Link</label><input class="field" id="f-url" name="url" required placeholder="https://claude.ai/chat/…">
+    <label for="f-title">Title</label><input class="field" id="f-title" name="title" required placeholder="What is this chat about?">
+    <label>Provider</label><div class="seg" id="provPick"></div>
+    <label for="f-folder">Folder</label><input class="field" id="f-folder" name="folder" list="folderList" placeholder="e.g. Work/Startup">
+    <label for="f-tags">Tags</label><input class="field" id="f-tags" name="tags" placeholder="research, pricing, essay">
+    <label for="f-summary" class="top">Summary</label><textarea class="field" id="f-summary" name="summary" rows="2" placeholder="What was this chat about? (Claude can write this)"></textarea>
+    <label for="f-notes" class="top">My notes</label><textarea class="field" id="f-notes" name="notes" rows="2" placeholder="Anything you'd search for later"></textarea>
+    <label>Open in</label>
+    <div><div class="seg" id="openPick"><button type="button" data-v="web"><svg class="i"><use href="#i-globe"/></svg>Website</button><button type="button" data-v="app"><svg class="i"><use href="#i-app"/></svg>Desktop app</button></div>
+      <p class="hint" id="openHint" style="margin-top:6px"></p></div>
+    <span></span>
+    <details class="ctx" id="ctxBox"><summary id="ctxSum">Conversation text (optional)</summary>
+      <textarea class="field" id="f-context" name="context" rows="5" placeholder="Paste part of the conversation here. It's searchable, and Claude uses it to understand the chat. The bookmark button fills this in automatically."></textarea>
+    </details>
   </div>
   <datalist id="folderList"></datalist>
-  <label>Tags (comma separated)<input name="tags" placeholder="research, pricing, essay"></label>
-  <label>Notes (searchable)<textarea name="notes" rows="2" placeholder="Keywords you'd search for later"></textarea></label>
-  <label>Open in</label>
-  <div class="seg" id="openInSeg"><button type="button" data-v="web">🌐 Website</button><button type="button" data-v="app">💻 App</button></div>
-  <p class="hint" id="openInHint"></p>
-  <div class="foot">
-    <button type="button" class="btn danger" id="delBtn" style="margin-right:auto">Delete</button>
-    <button type="button" class="btn" value="cancel" id="cancelEdit">Cancel</button>
-    <button class="btn primary" value="ok">Save</button>
+  <div class="sheet-foot">
+    <button type="button" class="pill" id="delBtn" style="color:var(--danger)"><svg class="i"><use href="#i-trash"/></svg>Delete</button>
+    <span class="flex"></span>
+    <button type="button" class="pill" id="cancelEdit">Cancel</button>
+    <button class="pill primary" value="ok">Save</button>
   </div>
 </form></dialog>
 
-<dialog id="setDlg"><div class="dlg">
-  <h3>Settings & capture</h3>
-  <p class="hint"><b>One-click capture.</b> Drag this button to your bookmarks bar. While you're on any ChatGPT / Claude / Gemini chat, click it — Agent Mash opens with the link and title already filled in.</p>
-  <p><a class="bm" id="bookmarklet" href="#">＋ Save to Agent Mash</a></p>
-  <hr style="border:0;border-top:1px solid var(--line);width:100%">
-  <p class="hint"><b>“Open in app” links.</b> <code>{url}</code> = full link, <code>{path}</code> = path after the domain (e.g. <code>/chat/abc</code>), <code>{id}</code> = last part of the path. Leave as <code>{url}</code> to just open the website (on iPhone/Android that still opens the installed app).</p>
-  <div id="tplRows"></div>
-  <div class="foot"><button class="btn" id="resetTpl" style="margin-right:auto">Reset defaults</button><button class="btn primary" id="closeSet">Done</button></div>
+<!-- Settings sheet -->
+<dialog id="setDlg"><div class="sheet" style="width:min(620px,calc(100vw - 24px))">
+  <div class="tabs"><div class="seg" id="setTabs">
+    <button data-tab="capture" class="on">Capture</button><button data-tab="apps">Apps</button><button data-tab="ai">AI</button><button data-tab="general">General</button>
+  </div></div>
+
+  <section class="tabpane on" data-pane="capture">
+    <h3>One-click capture</h3>
+    <p>Drag this button to your browser's bookmarks bar (press <code>⌘⇧B</code> if the bar is hidden).</p>
+    <p class="row"><a class="bm" id="bookmarklet" href="#"><svg class="i"><use href="#i-plus"/></svg>Save to Agent Mash</a></p>
+    <p>Then, on any ChatGPT, Claude or Gemini chat, click it. Agent Mash opens with the <b>link, title and conversation text</b> filled in, so it can work out what the chat is about. The text goes into the page address after a <code>#</code>, which browsers never send to any server.</p>
+    <h4>Chats you started in a desktop app</h4>
+    <p>Your app chats are the same chats as on the website, because they sync to your account. Two ways to add one:</p>
+    <p>• Open the chat on the website once and click the bookmark.<br>• Or press <code>⌘A</code> <code>⌘C</code> inside the app's conversation, then click <b>Add</b> here and paste it into <i>Conversation text</i>, plus the link.</p>
+    <h4>Other ways</h4>
+    <p>You can drag a link from any browser tab onto this window, or press <code>N</code> to add one.</p>
+  </section>
+
+  <section class="tabpane" data-pane="apps">
+    <h3>Opening chats in desktop apps</h3>
+    <p>Here's what I found by reading the code of the apps installed on this Mac (November 2026):</p>
+    <div id="appStatus"></div>
+    <h4>App link formats</h4>
+    <p><code>{url}</code> is the full link, <code>{path}</code> is the part after the domain, and <code>{id}</code> is the last part. Leave a format as <code>{url}</code> to open the website. On iPhone, iPad and Android, chats always open the website link, which the installed app takes over automatically.</p>
+    <div class="form" id="tplRows" style="grid-template-columns:110px 1fr"></div>
+    <div class="row" style="margin-top:10px"><button class="pill" id="resetTpl">Reset to defaults</button></div>
+  </section>
+
+  <section class="tabpane" data-pane="ai">
+    <h3>Understand chats automatically <span class="chip" style="vertical-align:middle">optional</span></h3>
+    <p>With a Claude API key, Agent Mash reads the conversation text you capture and writes a <b>title, summary, tags, search keywords and a folder</b> for you. In search, <b>Ask Claude</b> also finds chats by meaning, not just exact words.</p>
+    <p>Without a key, it still picks keywords and suggests a folder on its own, right in your browser.</p>
+    <div class="form" style="grid-template-columns:110px 1fr">
+      <label for="s-key">API key</label>
+      <div class="row"><input class="field" id="s-key" type="password" placeholder="sk-ant-…" style="flex:1" autocomplete="off"><button class="pill" id="s-test">Test</button></div>
+      <span></span><p class="hint">Get one at <code>console.anthropic.com</code>. It's stored only in this browser and sent only to <code>api.anthropic.com</code>. Pages hosted under the same <code>*.github.io</code> address can read this browser storage, so use a key with a low spend limit.</p>
+      <label for="s-model">Model</label>
+      <select class="field" id="s-model">
+        <option value="claude-opus-5-5">Claude Opus 5.5 (best understanding)</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (balanced)</option>
+        <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
+      </select>
+      <label>Auto-fill</label>
+      <div class="row"><label class="switch"><input type="checkbox" id="s-auto"><span></span></label><span class="hint">Analyze each captured chat automatically</span></div>
+      <span></span><p class="hint" id="s-status"></p>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="pill" id="s-bulk"><svg class="i"><use href="#i-sparkles"/></svg>Analyze chats without a summary</button></div>
+  </section>
+
+  <section class="tabpane" data-pane="general">
+    <h3>Appearance</h3>
+    <div class="seg" id="themeSeg"><button data-v="auto">Automatic</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div>
+    <h4>Install as a Mac app</h4>
+    <p><b>Safari:</b> File → Add to Dock. <b>Chrome:</b> ⋮ → Cast, save and share → Install page as app. Agent Mash then opens in its own window with its own Dock icon.</p>
+    <h4>Your data</h4>
+    <p>Everything stays in this browser. A backup moves your chats to another browser or device. Your API key is never included in it.</p>
+    <div class="row"><button class="pill" id="exportBtn">Export backup…</button><button class="pill" id="importBtn">Import backup…</button></div>
+    <input type="file" id="importFile" accept="application/json" hidden>
+    <h4>Keyboard</h4>
+    <p><code>⌘K</code> or <code>/</code> search · <code>↑</code><code>↓</code> select · <code>↩</code> open · <code>N</code> new chat · <code>E</code> edit · <code>P</code> pin · <code>⌫</code> delete · right-click for more</p>
+  </section>
+
+  <div class="sheet-foot"><span class="flex"></span><button class="pill primary" id="closeSet">Done</button></div>
 </div></dialog>
 
-<div class="toast" id="toast"></div>
+<div class="menu glass" id="menu"></div>
+<div class="toast glass" id="toast"><span id="toastMsg"></span><button id="toastBtn"></button></div>
+<div class="drop-overlay" id="dropOv">Drop to add this chat</div>
+
+<!-- SF-Symbols-style icon set -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-all" viewBox="0 0 24 24"><rect x="4" y="7.5" width="12.5" height="12.5" rx="2.6"/><path d="M8 4.2h9.3A2.6 2.6 0 0 1 20 6.8V16"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.8l2.5 5.2 5.7.8-4.1 4 1 5.6L12 16.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/></symbol>
+  <symbol id="i-starfill" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.8l2.5 5.2 5.7.8-4.1 4 1 5.6L12 16.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/></symbol>
+  <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3.5 13.5l2.6-6.9A2 2 0 0 1 8 5.3h8a2 2 0 0 1 1.9 1.3l2.6 6.9V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M3.5 13.5H8l1.5 2.4h5l1.5-2.4h4.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.4a2 2 0 0 1 2-2h3.8l2.1 2.2h7.1a2 2 0 0 1 2 2v7.9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-folderplus" viewBox="0 0 24 24"><path d="M3.5 7.4a2 2 0 0 1 2-2h3.8l2.1 2.2h7.1a2 2 0 0 1 2 2v7.9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M12 10.5v5.5M9.2 13.2h5.6"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.8 12.6V5.5a1.7 1.7 0 0 1 1.7-1.7h7.1l7.6 7.6a1.7 1.7 0 0 1 0 2.4l-6.7 6.7a1.7 1.7 0 0 1-2.4 0z"/><circle cx="8.3" cy="8.3" r="1.3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11 3.5l1.9 5 5 1.9-5 1.9-1.9 5-1.9-5-5-1.9 5-1.9z"/><path d="M18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.6 3.5 5.4 3.5 8.5s-1.1 5.9-3.5 8.5c-2.4-2.6-3.5-5.4-3.5-8.5S9.6 6.1 12 3.5z"/></symbol>
+  <symbol id="i-app" viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.8"/><path d="M2.5 18.8h19"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.2 15.2L20 20"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15M5.8 8h1.6M5.8 11h1.6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.2"/><path d="M15.5 8.5V6.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v7.4a1.8 1.8 0 0 0 1.8 1.8h2.2"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M15.5 4.8l3.7 3.7L8.6 19.1l-4.6.9.9-4.6z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13"/></symbol>
+  <symbol id="i-stack" viewBox="0 0 24 24"><path d="M12 3.5l8.5 4.4L12 12.3 3.5 7.9z"/><path d="M3.5 12L12 16.4 20.5 12M3.5 16.1L12 20.5l8.5-4.4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M9 5.5h9.5V15M18.5 5.5L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
+</svg>
 
 <script>
 (() => {
 'use strict';
+
+/* ============================================================
+   Config
+   ============================================================ */
 const KEY = 'agentmash.v1';
+const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm';
+const CTX_MAX = 6000;
 const PROVIDERS = {
-  chatgpt: {name:'ChatGPT', color:'var(--chatgpt)', hosts:['chatgpt.com','chat.openai.com'], app:'{url}'},
-  claude:  {name:'Claude',  color:'var(--claude)',  hosts:['claude.ai'], app:'claude://claude.ai{path}'},
-  gemini:  {name:'Gemini',  color:'var(--gemini)',  hosts:['gemini.google.com','aistudio.google.com'], app:'{url}'},
-  other:   {name:'Other',   color:'var(--other)',   hosts:[], app:'{url}'},
+  chatgpt: { name:'ChatGPT', letter:'⬡', color:'var(--chatgpt)', hosts:['chatgpt.com','chat.openai.com'], app:'{url}' },
+  claude:  { name:'Claude',  letter:'✳', color:'var(--claude)',  hosts:['claude.ai'],                       app:'claude://claude.ai{path}' },
+  gemini:  { name:'Gemini',  letter:'✦', color:'var(--gemini)',  hosts:['gemini.google.com','aistudio.google.com'], app:'{url}' },
+  other:   { name:'Other',   letter:'•', color:'var(--other)',   hosts:[], app:'{url}' },
 };
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon = (n, cls='i') => `<svg class="${cls}"><use href="#i-${n}"/></svg>`;
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-// ---------- state ----------
+/* ============================================================
+   Storage
+   ============================================================ */
 let db = load();
-let ui = { view:'all', folder:null, tag:null, providers:new Set(), q:'', sel:0 };
-let editing = null, openIn = 'web';
+const ui = { view:'all', folder:null, tag:null, provider:null, q:'', sel:0, aiIds:null, aiBusy:false };
+let editing = null, openIn = 'web', provPicked = 'chatgpt', openTouched = false;
 
-function load(){
-  try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && Array.isArray(d.chats)) return normalize(d); } catch {}
-  return normalize({});
-}
-function normalize(d){
-  return { chats: d.chats || [], folders: d.folders || [], templates: Object.assign(defaultTemplates(), d.templates || {}) };
-}
 function defaultTemplates(){ return Object.fromEntries(Object.entries(PROVIDERS).map(([k,p]) => [k, p.app])); }
-function save(){ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast('Could not save (storage blocked?)'); } }
+function normalize(d){
+  d = d || {};
+  return {
+    chats: (d.chats || []).map(c => ({ tags:[], keywords:[], folder:'', notes:'', summary:'', context:'', openIn:'web', pinned:false, lastOpened:0, created:Date.now(), ...c })),
+    folders: d.folders || [],
+    templates: Object.assign(defaultTemplates(), d.templates || {}),
+    settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'auto' }, d.settings || {}),
+  };
+}
+function load(){
+  try { const raw = localStorage.getItem(KEY); if (raw) return normalize(JSON.parse(raw)); } catch {}
+  return normalize();
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch { toast('Couldn’t save. Browser storage is full or blocked.'); }
+}
 
-// ---------- helpers ----------
+/* ============================================================
+   Helpers
+   ============================================================ */
 function detect(url){
   try {
     const h = new URL(url).hostname.replace(/^www\./,'');
-    for (const [k,p] of Object.entries(PROVIDERS)) if (p.hosts.some(x => h === x || h.endsWith('.'+x))) return k;
+    for (const [k,p] of Object.entries(PROVIDERS)) if (p.hosts.some(x => h === x || h.endsWith('.' + x))) return k;
   } catch {}
   return 'other';
 }
-function cleanTitle(t, provider){
-  return String(t||'').replace(/\s*[-|–—]\s*(Claude|ChatGPT|Gemini|Google Gemini)\s*$/i,'').replace(/^(Claude|ChatGPT|Gemini)\s*[-|–—]\s*/i,'').trim();
+function normUrl(u){
+  try { const x = new URL(u); return (x.hostname.replace(/^www\./,'') + x.pathname.replace(/\/+$/,'')).toLowerCase(); }
+  catch { return String(u).trim().toLowerCase(); }
 }
-function appUrl(c){
+function cleanTitle(t){
+  return String(t || '').replace(/\s*[-|–—]\s*(Claude|ChatGPT|Gemini|Google Gemini|Google AI Studio)\s*$/i,'')
+    .replace(/^(Claude|ChatGPT|Gemini)\s*[-|–—:]\s*/i,'').trim();
+}
+function genericTitle(t){ return !t || /^(claude|chatgpt|gemini|google gemini|new chat|untitled)$/i.test(t.trim()); }
+
+/* What actually happens when a chat is opened in "app" mode. */
+function appLink(c){
+  if (IS_MOBILE) return c.url;                       // iOS/Android: universal links open the installed app
   const tpl = db.templates[c.provider] || '{url}';
-  let path = '', id = '';
-  try { const u = new URL(c.url); path = u.pathname + u.search; id = u.pathname.split('/').filter(Boolean).pop() || ''; } catch {}
+  if (tpl.trim() === '{url}') return c.url;
+  let u; try { u = new URL(c.url); } catch { return c.url; }
+  const path = u.pathname.replace(/\/+$/,'');
+  const id = path.split('/').filter(Boolean).pop() || '';
+  // The Claude app only routes /chat/<uuid> and /project/<uuid>; anything else would land on Recents.
+  if (c.provider === 'claude' && tpl.startsWith('claude://') && !/^\/(chat|project)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) return c.url;
   return tpl.replaceAll('{url}', c.url).replaceAll('{path}', path).replaceAll('{id}', id);
 }
-function targetUrl(c){ return c.openIn === 'app' ? appUrl(c) : c.url; }
+const targetUrl = c => c.openIn === 'app' ? appLink(c) : c.url;
+const opensNative = c => !/^https?:/i.test(targetUrl(c));
+
 function ago(t){
-  if (!t) return 'never opened';
-  const s = (Date.now()-t)/1000;
-  if (s < 60) return 'just now';
-  if (s < 3600) return Math.floor(s/60)+'m ago';
-  if (s < 86400) return Math.floor(s/3600)+'h ago';
-  if (s < 86400*30) return Math.floor(s/86400)+'d ago';
-  return new Date(t).toLocaleDateString();
+  if (!t) return 'Not opened yet';
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'Just now';
+  if (s < 3600) return Math.floor(s/60) + ' min ago';
+  if (s < 86400) return Math.floor(s/3600) + ' hr ago';
+  if (s < 86400*7) return Math.floor(s/86400) + 'd ago';
+  return new Date(t).toLocaleDateString(undefined, { month:'short', day:'numeric' });
 }
 function allFolders(){
   const set = new Set(db.folders);
-  db.chats.forEach(c => { if (c.folder) { const parts = c.folder.split('/'); parts.forEach((_,i) => set.add(parts.slice(0,i+1).join('/'))); } });
-  return [...set].sort((a,b) => a.localeCompare(b));
+  db.chats.forEach(c => { if (c.folder) { const p = c.folder.split('/'); p.forEach((_, i) => set.add(p.slice(0, i+1).join('/'))); } });
+  return [...set].sort((a,b) => a.localeCompare(b, undefined, { sensitivity:'base' }));
 }
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200); }
+const inFolder = (c, f) => c.folder === f || (c.folder || '').startsWith(f + '/');
+const cleanFolder = f => String(f || '').trim().replace(/^\/+|\/+$/g,'').replace(/\s*\/\s*/g,'/');
+const parseTags = s => [...new Set(String(s || '').split(',').map(t => t.trim().toLowerCase().replace(/^#/,'')).filter(Boolean))];
 
-// ---------- search ----------
+/* ============================================================
+   Local understanding (no AI): keywords + folder suggestion
+   ============================================================ */
+const STOP = new Set(('a about above after again against all also am an and any are as at be because been before being below between both but by can could did do does doing down during each few for from further had has have having he her here hers him his how i if in into is it its itself just let like make me more most my no nor not now of off on once only or other our ours out over own same she should so some such than that the their them then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your yours yes okay ok sure thanks thank please need want get got use using used one two also may might much many really well able way something anything thing things here there ' +
+  'me ai user assistant chatgpt claude gemini copy edit retry share regenerate response responses message messages said says answer question questions help helpful let lets know think going sounds great good example examples based following provide include including make made sure first second next new also would could should ' +
+  'code show shown below above give gives given like look looks looking without within across actually basically simply').split(/\s+/));
+function keywordsFrom(text, n = 12){
+  const counts = new Map();
+  const words = String(text || '').toLowerCase().match(/[a-z][a-z0-9+#.-]{2,}/g) || [];
+  for (let w of words){
+    w = w.replace(/[.-]+$/,'');
+    if (w.length < 4 || STOP.has(w) || /^\d/.test(w)) continue;
+    counts.set(w, (counts.get(w) || 0) + 1);
+  }
+  return [...counts.entries()].filter(([,c]) => c > 1 || counts.size < 25).sort((a,b) => b[1]-a[1] || b[0].length-a[0].length).slice(0, n).map(([w]) => w);
+}
+function suggestFolder(kw, exceptId){
+  const score = new Map();
+  for (const c of db.chats){
+    if (!c.folder || c.id === exceptId) continue;
+    const theirs = new Set([...(c.keywords||[]), ...(c.tags||[]), ...keywordsFrom(c.title + ' ' + c.summary, 8)]);
+    const overlap = kw.filter(k => theirs.has(k)).length;
+    if (overlap) score.set(c.folder, (score.get(c.folder) || 0) + overlap);
+  }
+  const best = [...score.entries()].sort((a,b) => b[1]-a[1])[0];
+  return best && best[1] >= 2 ? best[0] : '';
+}
+
+/* ============================================================
+   Search
+   ============================================================ */
+function fieldsOf(c){
+  return {
+    title: c.title.toLowerCase(), tags: (c.tags||[]).join(' ').toLowerCase(), kw: (c.keywords||[]).join(' ').toLowerCase(),
+    summary: (c.summary||'').toLowerCase(), notes: (c.notes||'').toLowerCase(), folder: (c.folder||'').toLowerCase(),
+    prov: PROVIDERS[c.provider]?.name.toLowerCase() || '', ctx: (c.context||'').toLowerCase(), url: c.url.toLowerCase(),
+  };
+}
 function score(c, tokens){
   if (!tokens.length) return 1;
-  const f = { title:c.title.toLowerCase(), tags:(c.tags||[]).join(' ').toLowerCase(), notes:(c.notes||'').toLowerCase(),
-              folder:(c.folder||'').toLowerCase(), prov:PROVIDERS[c.provider].name.toLowerCase(), url:c.url.toLowerCase() };
+  const f = fieldsOf(c);
   let total = 0;
   for (const t of tokens){
     let s = 0;
-    if (f.title.includes(t)) s += f.title.split(/\W+/).some(w => w.startsWith(t)) ? 10 : 6;
-    if (f.tags.includes(t)) s += 6;
+    if (f.title.includes(t)) s += f.title.split(/[^a-z0-9]+/).some(w => w.startsWith(t)) ? 12 : 7;
+    if (f.tags.includes(t)) s += 7;
+    if (f.kw.includes(t)) s += 5;
+    if (f.summary.includes(t)) s += 5;
     if (f.folder.includes(t)) s += 4;
-    if (f.notes.includes(t)) s += 3;
+    if (f.notes.includes(t)) s += 4;
     if (f.prov.startsWith(t)) s += 3;
+    if (f.ctx.includes(t)) s += 2;
     if (f.url.includes(t)) s += 1;
-    if (!s) return 0;                // every word must match somewhere
+    if (!s) return 0;           // every word must match somewhere
     total += s;
   }
   return total;
 }
+function scoped(){
+  return db.chats.filter(c => {
+    if (ui.view === 'pinned' && !c.pinned) return false;
+    if (ui.view === 'recent' && !c.lastOpened) return false;
+    if (ui.view === 'unfiled' && c.folder) return false;
+    if (ui.view === 'folder' && !inFolder(c, ui.folder)) return false;
+    if (ui.view === 'tag' && !(c.tags||[]).includes(ui.tag)) return false;
+    if (ui.provider && c.provider !== ui.provider) return false;
+    return true;
+  });
+}
 function visible(){
   const tokens = ui.q.toLowerCase().split(/\s+/).filter(Boolean);
-  let list = db.chats.filter(c => {
-    if (ui.view === 'pinned' && !c.pinned) return false;
-    if (ui.view === 'folder' && !(c.folder === ui.folder || (c.folder||'').startsWith(ui.folder + '/'))) return false;
-    if (ui.view === 'unfiled' && c.folder) return false;
-    if (ui.view === 'tag' && !(c.tags||[]).includes(ui.tag)) return false;
-    if (ui.providers.size && !ui.providers.has(c.provider)) return false;
-    return true;
-  }).map(c => ({c, s:score(c, tokens)})).filter(x => x.s > 0);
-  const rec = x => x.c.lastOpened || x.c.created || 0;
-  list.sort((a,b) => tokens.length ? (b.s-a.s) || (rec(b)-rec(a))
-                                   : ui.view === 'recent' ? rec(b)-rec(a)
-                                   : (b.c.pinned-a.c.pinned) || (rec(b)-rec(a)));
-  if (ui.view === 'recent' && !tokens.length) list = list.slice(0, 30);
+  const base = scoped();
+  if (ui.aiIds){
+    const byId = new Map(base.map(c => [c.id, c]));
+    return { list: ui.aiIds.map(id => byId.get(id)).filter(Boolean), tokens: [], ai:true };
+  }
+  const rec = c => c.lastOpened || c.created || 0;
+  let list = base.map(c => ({ c, s: score(c, tokens) })).filter(x => x.s > 0);
+  list.sort((a,b) => tokens.length ? (b.s - a.s) || (rec(b.c) - rec(a.c))
+    : ui.view === 'recent' ? b.c.lastOpened - a.c.lastOpened
+    : (b.c.pinned - a.c.pinned) || (rec(b.c) - rec(a.c)));
+  if (ui.view === 'recent' && !tokens.length) list = list.slice(0, 40);
   return { list: list.map(x => x.c), tokens };
 }
 function hl(text, tokens){
   let out = esc(text);
-  for (const t of tokens){ if (t.length < 2) continue; out = out.replace(new RegExp('(' + esc(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')(?![^<]*>)','ig'), '<mark>$1</mark>'); }
+  for (const t of tokens){
+    if (t.length < 2) continue;
+    const re = new RegExp('(' + esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![^<]*>)', 'ig');
+    out = out.replace(re, '<mark>$1</mark>');
+  }
   return out;
 }
+function snippet(c, tokens){
+  // show the bit of the conversation that matched, when the match isn't visible elsewhere on the card
+  if (!tokens.length || !c.context) return '';
+  const f = fieldsOf(c);
+  const t = tokens.find(t => !f.title.includes(t) && !f.summary.includes(t) && !f.tags.includes(t) && f.ctx.includes(t));
+  if (!t) return '';
+  const i = f.ctx.indexOf(t), s = Math.max(0, i - 60);
+  return (s ? '…' : '') + c.context.slice(s, i + 90).replace(/\s+/g,' ') + '…';
+}
 
-// ---------- render ----------
+/* ============================================================
+   Render
+   ============================================================ */
+function navItem({ attrs, ic, label, count, on, extra='' }){
+  return `<div class="nav-item ${on ? 'on' : ''}" ${attrs}>${ic}<span class="lbl">${label}</span>${extra}<span class="ct">${count ?? ''}</span></div>`;
+}
 function render(){
-  const counts = { all: db.chats.length, recent: db.chats.filter(c => c.lastOpened).length, pinned: db.chats.filter(c => c.pinned).length, unfiled: db.chats.filter(c => !c.folder).length };
-  $('#views').innerHTML = [['all','📚 All chats'],['recent','🕘 Recent'],['pinned','⭐ Pinned'],['unfiled','📥 Unfiled']]
-    .map(([v,l]) => `<a data-view="${v}" class="${ui.view===v?'on':''}">${l}<span class="count">${counts[v]}</span></a>`).join('');
+  const n = { all: db.chats.length, recent: db.chats.filter(c => c.lastOpened).length, pinned: db.chats.filter(c => c.pinned).length, unfiled: db.chats.filter(c => !c.folder).length };
+  $('#nav-lib').innerHTML = [['all','all','All Chats'],['recent','clock','Recent'],['pinned','star','Pinned'],['unfiled','tray','Unfiled']]
+    .map(([v, ic, l]) => navItem({ attrs:`data-view="${v}" data-drop="${v}"`, ic:icon(ic), label:l, count:n[v], on: ui.view === v })).join('');
 
   const folders = allFolders();
-  $('#folders').innerHTML = folders.map(f => {
-    const depth = f.split('/').length - 1, name = f.split('/').pop();
-    const n = db.chats.filter(c => c.folder === f || (c.folder||'').startsWith(f+'/')).length;
-    return `<a data-folder="${esc(f)}" class="${ui.view==='folder'&&ui.folder===f?'on':''}" style="padding-left:${8+depth*14}px">
-      <span>📁 ${esc(name)}</span><span><button class="del" data-delfolder="${esc(f)}" title="Remove folder">×</button><span class="count">${n}</span></span></a>`;
-  }).join('') || '<p class="hint" style="padding:0 8px">Type a folder like <code>Work/Startup</code> when adding a chat, or press +.</p>';
+  $('#nav-folders').innerHTML = folders.map(f => {
+    const depth = f.split('/').length - 1;
+    return navItem({ attrs:`data-folder="${esc(f)}" data-drop="folder" style="padding-left:${10 + depth*16}px" title="${esc(f)}"`, ic:icon('folder'),
+      label:esc(f.split('/').pop()), count: db.chats.filter(c => inFolder(c, f)).length, on: ui.view === 'folder' && ui.folder === f,
+      extra:`<button class="x" data-delfolder="${esc(f)}" title="Remove folder">${icon('trash')}</button>` });
+  }).join('') || `<p class="hint" style="padding:2px 10px">Drag chats here, or type a folder like <code>Work/Startup</code> when adding one.</p>`;
   $('#folderList').innerHTML = folders.map(f => `<option value="${esc(f)}">`).join('');
 
   const tagCounts = {};
-  db.chats.forEach(c => (c.tags||[]).forEach(t => tagCounts[t] = (tagCounts[t]||0)+1));
-  $('#tags').innerHTML = Object.entries(tagCounts).sort((a,b) => b[1]-a[1]).slice(0,25)
-    .map(([t,n]) => `<a data-tag="${esc(t)}" class="${ui.view==='tag'&&ui.tag===t?'on':''}"># ${esc(t)}<span class="count">${n}</span></a>`).join('') || '<p class="hint" style="padding:0 8px">No tags yet.</p>';
+  db.chats.forEach(c => (c.tags||[]).forEach(t => tagCounts[t] = (tagCounts[t] || 0) + 1));
+  const tags = Object.entries(tagCounts).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0])).slice(0, 30);
+  $('#tagsHead').style.display = tags.length ? '' : 'none';
+  $('#nav-tags').innerHTML = tags.map(([t, c]) => navItem({ attrs:`data-tag="${esc(t)}"`, ic:icon('tag'), label:esc(t), count:c, on: ui.view === 'tag' && ui.tag === t })).join('');
 
-  const viewName = ui.view==='folder' ? '📁 '+ui.folder : ui.view==='tag' ? '# '+ui.tag : {all:'All chats',recent:'Recently opened',pinned:'Pinned',unfiled:'Unfiled'}[ui.view];
-  $('#chips').innerHTML = Object.entries(PROVIDERS).map(([k,p]) =>
-    `<button class="chip ${ui.providers.has(k)?'on':''}" data-prov="${k}"><span class="dot" style="background:${p.color}"></span>${p.name} <span class="count">${db.chats.filter(c=>c.provider===k).length}</span></button>`).join('')
-    + `<span class="spacer"></span><span class="view-title">${esc(viewName)}</span>`;
+  $('#provSeg').innerHTML = `<button data-prov="" class="${!ui.provider ? 'on' : ''}">All</button>` +
+    Object.entries(PROVIDERS).filter(([k]) => k !== 'other' || db.chats.some(c => c.provider === 'other'))
+      .map(([k,p]) => `<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}"><span class="dot" style="background:${p.color}"></span>${p.name}</button>`).join('');
 
-  const { list, tokens } = visible();
-  ui.sel = Math.min(ui.sel, Math.max(0, list.length-1));
-  if (!db.chats.length){
-    $('#list').innerHTML = `<div class="empty"><h2>No chats saved yet</h2><p>Click <b>+ Add chat</b> and paste a link from ChatGPT, Claude or Gemini,<br>or set up the one-click bookmark in <a href="#" data-open-settings>Settings & capture</a>.</p></div>`;
-    return;
+  $('#aiDot').classList.toggle('on', !!db.settings.apiKey);
+  $('#aiDot').title = db.settings.apiKey ? 'Claude AI is on' : 'Claude AI is off';
+
+  const { list, tokens, ai } = visible();
+  const title = ui.view === 'folder' ? ui.folder.split('/').pop() : ui.view === 'tag' ? '#' + ui.tag
+    : { all:'All Chats', recent:'Recent', pinned:'Pinned', unfiled:'Unfiled' }[ui.view];
+  $('#viewTitle').textContent = title;
+  $('#viewSub').textContent = ai ? `${list.length} found by Claude` : `${list.length} chat${list.length === 1 ? '' : 's'}${ui.provider ? ' · ' + PROVIDERS[ui.provider].name : ''}`;
+  ui.sel = Math.min(ui.sel, Math.max(0, list.length - 1));
+
+  let html = '';
+  if (ui.q.trim().length >= 3 && db.settings.apiKey){
+    html += ai
+      ? `<div class="ai-row glass">${icon('sparkles')}<span class="t">Claude’s matches for “${esc(ui.q)}”</span><button class="pill" data-ai-clear>Show keyword results</button></div>`
+      : `<div class="ai-row glass">${ui.aiBusy ? '<span class="spin"></span>' : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? 'disabled' : ''}>Ask Claude <kbd style="opacity:.6">⇧↩</kbd></button></div>`;
   }
-  if (!list.length){ $('#list').innerHTML = `<div class="empty"><h2>Nothing matches</h2><p>Try fewer words, or clear the provider filter.</p></div>`; return; }
-  $('#list').innerHTML = list.map((c,i) => {
-    const p = PROVIDERS[c.provider];
-    return `<div class="card ${i===ui.sel?'sel':''}" data-id="${c.id}" style="--c:${p.color}" title="${esc(targetUrl(c))}">
-      <div class="actions">
-        <button class="pin ${c.pinned?'on':''}" data-act="pin" title="Pin">${c.pinned?'★':'☆'}</button>
-        <button data-act="copy" title="Copy link">⧉</button>
-        <button data-act="edit" title="Edit">✎</button>
-      </div>
-      <div class="t">${hl(c.title, tokens)}</div>
-      <div class="meta"><span><span class="dot" style="background:${p.color}"></span> ${p.name}</span>
-        <span class="badge">${c.openIn==='app'?'💻 app':'🌐 web'}</span>
-        ${c.folder?`<span>📁 ${hl(c.folder,tokens)}</span>`:''}
-        <span>· ${ago(c.lastOpened)}</span></div>
-      ${(c.tags||[]).length?`<div class="meta">${c.tags.map(t=>`<span class="tag">#${hl(t,tokens)}</span>`).join('')}</div>`:''}
-      ${c.notes?`<div class="notes">${hl(c.notes,tokens)}</div>`:''}
-    </div>`;
-  }).join('');
+  if (!db.chats.length){
+    html += `<div class="empty glass"><img class="big" src="icon.svg" alt=""><h2>Your AI chats, in one place</h2>
+      <p>Click <b>Add</b> and paste a ChatGPT, Claude or Gemini link,<br>or set up the one-click button in <a href="#" data-open-settings>Settings → Capture</a>.</p></div>`;
+  } else if (!list.length){
+    html += `<div class="empty glass"><h2>No matches</h2><p>Try fewer words${ui.provider ? ', or switch the provider filter back to All' : ''}.</p></div>`;
+  } else {
+    html += list.map((c, i) => card(c, i, tokens)).join('');
+  }
+  $('#grid').innerHTML = html;
+}
+function card(c, i, tokens){
+  const p = PROVIDERS[c.provider] || PROVIDERS.other;
+  const native = IS_MOBILE || opensNative(c);   // on phones the web link itself opens the installed app
+  const mode = c.openIn === 'app'
+    ? `<span class="chip mode" title="${native ? 'Opens in the ' + p.name + ' app' : 'Opens the website (no app link available here)'}">${icon('app')}${native ? 'App' : 'App → web'}</span>`
+    : `<span class="chip mode">${icon('globe')}Web</span>`;
+  const snip = snippet(c, tokens);
+  const body = c.summary || c.notes;
+  return `<div class="card glass sheen ${i === ui.sel ? 'sel' : ''}" data-id="${c.id}" draggable="true" tabindex="-1">
+    <div class="card-actions">
+      <button data-act="pin" class="${c.pinned ? 'on' : ''}" title="${c.pinned ? 'Unpin' : 'Pin'}">${icon(c.pinned ? 'starfill' : 'star')}</button>
+      <button data-act="edit" title="Edit">${icon('pencil')}</button>
+    </div>
+    <div class="card-h">
+      <div class="av" style="background:${p.color}">${p.letter}</div>
+      <div class="card-t"><b>${hl(c.title, tokens)}</b>
+        <small><span>${p.name}</span>·<span>${ago(c.lastOpened)}</span></small></div>
+    </div>
+    ${body ? `<div class="sum">${hl(body, tokens)}</div>` : ''}
+    ${snip ? `<div class="sum" style="font-style:italic">“${hl(snip, tokens)}”</div>` : ''}
+    <div class="chips">${mode}${c.folder ? `<span class="chip">${hl(c.folder, tokens)}</span>` : ''}${(c.tags||[]).map(t => `<span class="chip">#${hl(t, tokens)}</span>`).join('')}</div>
+  </div>`;
 }
 
-// ---------- actions ----------
-function openChat(c, quiet){
-  c.lastOpened = Date.now(); save();
-  const url = targetUrl(c);
-  if (/^https?:/i.test(url)) window.open(url, '_blank', 'noopener');
-  else window.location.href = url;          // custom app scheme (e.g. claude://)
-  if (!quiet) render();
+/* ============================================================
+   Opening chats
+   ============================================================ */
+function launch(url){
+  if (/^https?:/i.test(url)) return !!window.open(url, '_blank', 'noopener');
+  // Custom app scheme (e.g. claude://): hand to the OS without leaving this page.
+  const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+  return true;
+}
+function openChat(c, mode){
+  const url = mode === 'web' ? c.url : mode === 'app' ? appLink(c) : targetUrl(c);
+  c.lastOpened = Date.now(); save(); render();
+  launch(url);
+  if (!/^https?:/i.test(url)){
+    const name = PROVIDERS[c.provider].name;
+    toast(`Opening in the ${name} app…`, 'Open website instead', () => launch(c.url), 6000);
+  }
 }
 function openAll(){
   const { list } = visible();
   if (!list.length) return;
   if (list.length > 8 && !confirm(`Open ${list.length} chats at once?`)) return;
-  let blocked = 0;
-  list.forEach(c => {
-    c.lastOpened = Date.now();
+  let blocked = 0, apps = 0;
+  list.forEach((c, i) => {
     const url = targetUrl(c);
+    c.lastOpened = Date.now();
     if (/^https?:/i.test(url)) { if (!window.open(url, '_blank')) blocked++; }
-    else { const a = document.createElement('a'); a.href = url; a.click(); }
+    else { apps++; setTimeout(() => launch(url), i * 350); }   // stagger app hand-offs so none are dropped
   });
   save(); render();
-  if (blocked) toast(`Browser blocked ${blocked} tab(s) — allow pop-ups for this site, then try again.`);
+  if (blocked) toast(`Your browser blocked ${blocked} tab(s). Allow pop-ups for this site and try again.`);
+  else if (apps) toast(`Opening ${apps} chat(s) in apps and ${list.length - apps} in tabs`);
 }
-function setOpenIn(v){
+
+/* ============================================================
+   Editor sheet
+   ============================================================ */
+const F = {};
+['url','title','folder','tags','summary','notes','context'].forEach(k => F[k] = $('#f-' + k));
+
+function setProv(k){
+  provPicked = k;
+  $('#provPick').innerHTML = Object.entries(PROVIDERS).map(([key,p]) =>
+    `<button type="button" data-p="${key}" class="${key === k ? 'on' : ''}"><span class="dot" style="background:${p.color}"></span>${p.name}</button>`).join('');
+  setOpen(openIn);
+}
+function setOpen(v){
   openIn = v;
-  document.querySelectorAll('#openInSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  const prov = $('#editForm').provider.value;
-  $('#openInHint').innerHTML = v === 'web' ? 'Opens in a new browser tab.'
-    : (db.templates[prov]||'{url}') === '{url}'
-      ? `${PROVIDERS[prov].name} has no desktop link format, so this opens the web link — on a phone with the app installed, that opens the app. Change it in Settings.`
-      : `Opens with <code>${esc(db.templates[prov])}</code> (change in Settings).`;
+  $$('#openPick button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const fake = { url: F.url.value.trim(), provider: provPicked, openIn: 'app' };
+  const name = PROVIDERS[provPicked].name;
+  let msg;
+  if (v === 'web') msg = 'Opens in a new browser tab.';
+  else if (IS_MOBILE) msg = `Opens the link, and your phone hands it to the ${name} app if it's installed.`;
+  else if (!/^https?:/i.test(appLink(fake))) msg = `${icon('check')} Opens this exact chat in the ${name} desktop app.`;
+  else if (provPicked === 'claude') msg = 'Only links like claude.ai/chat/… or claude.ai/project/… can open in the app. This one will open the website.';
+  else if (provPicked === 'chatgpt') msg = 'The ChatGPT Mac app has no way to open a specific chat from a link, so this opens the website. On iPhone it opens the app.';
+  else if (provPicked === 'gemini') msg = 'Gemini has no Mac app, so this opens the website. On a phone it opens the Gemini app.';
+  else msg = 'No app link is set for this provider, so it opens the website.';
+  $('#openHint').innerHTML = msg;
 }
 function openEditor(c, prefill){
-  editing = c || null;
-  const f = $('#editForm'), d = c || prefill || {};
-  f.provider.innerHTML = Object.entries(PROVIDERS).map(([k,p]) => `<option value="${k}">${p.name}</option>`).join('');
-  f.url.value = d.url || ''; f.title.value = d.title || '';
-  f.provider.value = d.provider || (d.url ? detect(d.url) : 'chatgpt');
-  f.folder.value = d.folder ?? (ui.view === 'folder' ? ui.folder : '');
-  f.tags.value = (d.tags||[]).join(', '); f.notes.value = d.notes || '';
-  $('#editTitle').textContent = c ? 'Edit chat' : 'Add chat';
+  editing = c || null; openTouched = false;
+  const d = c || prefill || {};
+  F.url.value = d.url || ''; F.title.value = d.title || ''; F.folder.value = d.folder ?? (ui.view === 'folder' ? ui.folder : '');
+  F.tags.value = (d.tags || []).join(', '); F.summary.value = d.summary || ''; F.notes.value = d.notes || ''; F.context.value = d.context || '';
+  $('#ctxBox').open = !!(d.context) && !c;
+  updateCtxLabel();
+  $('#editTitle').textContent = c ? 'Edit Chat' : 'Add Chat';
+  $('#editSub').textContent = c ? PROVIDERS[c.provider].name + ' · added ' + new Date(c.created).toLocaleDateString() : (d.context ? 'Captured from your browser. Check the details and save.' : 'Paste a link from ChatGPT, Claude or Gemini.');
   $('#delBtn').style.display = c ? '' : 'none';
-  setOpenIn(d.openIn || (f.provider.value === 'claude' ? 'app' : 'web'));
-  $('#editDlg').showModal();
-  (d.url ? (d.title ? f.tags : f.title) : f.url).focus();
+  const prov = d.provider || detect(d.url || '');
+  openIn = d.openIn || (prov === 'claude' && !IS_MOBILE ? 'app' : 'web');   // Claude defaults to the app (verified to work)
+  setProv(d.provider || (d.url ? detect(d.url) : 'chatgpt'));
+  setAiBar();
+  if (!$('#editDlg').open) $('#editDlg').showModal();
+  (d.url ? (d.title ? F.tags : F.title) : F.url).focus();
+}
+function updateCtxLabel(){
+  const n = F.context.value.trim().length;
+  $('#ctxSum').textContent = n ? `Conversation text · ${n.toLocaleString()} characters` : 'Conversation text (optional)';
+}
+function setAiBar(state, text){
+  const bar = $('#aiBar');
+  if (!db.settings.apiKey){
+    bar.hidden = false;
+    $('#aiBarText').innerHTML = 'Add a Claude API key in Settings → AI to fill this in automatically.';
+    $('#aiRun').textContent = 'Set up'; $('#aiRun').dataset.mode = 'setup'; $('#aiRun').disabled = false;
+    bar.querySelector('svg, .spin').outerHTML = icon('sparkles');
+    return;
+  }
+  bar.hidden = false;
+  $('#aiRun').dataset.mode = 'run';
+  const spinner = state === 'busy';
+  bar.querySelector('svg, .spin').outerHTML = spinner ? '<span class="spin"></span>' : icon('sparkles');
+  $('#aiRun').disabled = spinner;
+  $('#aiRun').textContent = state === 'done' ? 'Run again' : 'Fill in with Claude';
+  $('#aiBarText').innerHTML = text || (F.context.value.trim() ? 'Claude can read the conversation text and write the title, summary, tags and folder.' : 'Claude works best with conversation text. Use the bookmark button, or paste some below.');
+}
+function localSuggest(force){
+  const text = [F.title.value, F.context.value].join('\n');
+  const kw = keywordsFrom(text);
+  if (!kw.length) return kw;
+  if (force || !F.tags.value.trim()) F.tags.value = kw.slice(0, 3).join(', ');
+  if (force || !F.folder.value.trim()){ const f = suggestFolder(kw, editing?.id); if (f) F.folder.value = f; }
+  if (genericTitle(F.title.value) && F.context.value.trim()){
+    const first = F.context.value.replace(/^(Me|AI):\s*/,'').split(/\n/).find(l => l.trim().length > 8) || '';
+    F.title.value = first.trim().slice(0, 70);
+  }
+  return kw;
+}
+async function aiFill(){
+  setAiBar('busy', 'Claude is reading the chat…');
+  try {
+    const r = await analyzeChat({ url: F.url.value.trim(), title: F.title.value.trim(), provider: provPicked, context: F.context.value, notes: F.notes.value });
+    if (r.title) F.title.value = r.title;
+    if (r.summary) F.summary.value = r.summary;
+    if (r.tags?.length) F.tags.value = r.tags.join(', ');
+    if (r.folder !== undefined && (r.folder || !F.folder.value)) F.folder.value = cleanFolder(r.folder);
+    F._aiKeywords = r.keywords || [];
+    setAiBar('done', `${icon('check')} Filled in by Claude. Change anything you like.`);
+  } catch (e){
+    setAiBar('error', `<span style="color:var(--danger)">${esc(e.message)}</span>`);
+  }
 }
 function saveEditor(){
-  const f = $('#editForm');
-  let url = f.url.value.trim();
-  if (url && !/^[a-z]+:\/\//i.test(url)) url = 'https://' + url;
-  const data = { url, title: f.title.value.trim(), provider: f.provider.value,
-    folder: f.folder.value.trim().replace(/^\/+|\/+$/g,'').replace(/\s*\/\s*/g,'/'),
-    tags: [...new Set(f.tags.value.split(',').map(t => t.trim().toLowerCase().replace(/^#/,'')).filter(Boolean))],
-    notes: f.notes.value.trim(), openIn };
+  let url = F.url.value.trim();
+  if (url && !/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) url = 'https://' + url;
+  const context = F.context.value.trim().slice(0, CTX_MAX);
+  const data = {
+    url, title: F.title.value.trim() || url, provider: provPicked, folder: cleanFolder(F.folder.value), tags: parseTags(F.tags.value),
+    summary: F.summary.value.trim(), notes: F.notes.value.trim(), context, openIn,
+  };
+  data.keywords = [...new Set([...(F._aiKeywords || editing?.keywords || []), ...keywordsFrom(data.title + ' ' + data.summary + ' ' + context, 10)])].slice(0, 20);
+  F._aiKeywords = null;
   if (editing) Object.assign(editing, data);
   else {
-    const dup = db.chats.find(c => c.url === url);
-    if (dup) { Object.assign(dup, data); toast('Already saved — updated it'); }
+    const dup = db.chats.find(c => normUrl(c.url) === normUrl(url));
+    if (dup) { Object.assign(dup, data); toast('You’d already saved this chat, so it was updated'); }
     else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, ...data });
   }
   save(); render();
 }
 
-// ---------- events ----------
-$('#views').onclick = e => { const a = e.target.closest('[data-view]'); if (a){ ui.view = a.dataset.view; ui.sel = 0; closeSide(); render(); } };
-$('#folders').onclick = e => {
-  const del = e.target.closest('[data-delfolder]');
-  if (del){
-    e.stopPropagation();
-    const f = del.dataset.delfolder, n = db.chats.filter(c => c.folder===f || (c.folder||'').startsWith(f+'/')).length;
-    if (n && !confirm(`Remove folder "${f}"? Its ${n} chat(s) stay saved but become unfiled.`)) return;
-    db.chats.forEach(c => { if (c.folder===f || (c.folder||'').startsWith(f+'/')) c.folder = ''; });
-    db.folders = db.folders.filter(x => x !== f && !x.startsWith(f+'/'));
-    if (ui.view==='folder' && (ui.folder===f || ui.folder.startsWith(f+'/'))) ui.view = 'all';
-    save(); render(); return;
+/* ============================================================
+   Claude (optional): understanding + semantic search
+   ============================================================ */
+let clientCache = null;
+async function getClient(){
+  if (!db.settings.apiKey) throw new Error('Add your Claude API key in Settings → AI first.');
+  if (clientCache?.key === db.settings.apiKey) return clientCache;
+  let mod;
+  try { mod = await import(SDK_URL); } catch { throw new Error('Couldn’t load the Claude SDK. Check your connection.'); }
+  const Anthropic = mod.default;
+  clientCache = { key: db.settings.apiKey, Anthropic, client: new Anthropic({ apiKey: db.settings.apiKey, dangerouslyAllowBrowser: true }) };
+  return clientCache;
+}
+async function askClaudeJSON({ system, user, schema, maxTokens = 4000 }){
+  const { client, Anthropic } = await getClient();
+  const model = db.settings.model;
+  const params = {
+    model, max_tokens: maxTokens, system,
+    messages: [{ role: 'user', content: user }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+  };
+  let res;
+  try {
+    // Haiku has no server-side refusal fallback; the others route a declined request to a fallback model.
+    res = /haiku/.test(model)
+      ? await client.messages.create(params)
+      : await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+  } catch (e){
+    if (e instanceof Anthropic.AuthenticationError) throw new Error('That API key was rejected. Check it in Settings → AI.');
+    if (e instanceof Anthropic.PermissionDeniedError) throw new Error('This API key isn’t allowed to use that model.');
+    if (e instanceof Anthropic.RateLimitError) throw new Error('Rate limited by the API. Wait a moment and try again.');
+    if (e instanceof Anthropic.BadRequestError) throw new Error('The API rejected the request: ' + (e.error?.error?.message || e.message));
+    if (e instanceof Anthropic.APIConnectionError) throw new Error('Couldn’t reach api.anthropic.com.');
+    if (e instanceof Anthropic.APIError) throw new Error(`API error ${e.status ?? ''}: ${e.message}`);
+    throw e;
   }
-  const a = e.target.closest('[data-folder]'); if (a){ ui.view='folder'; ui.folder=a.dataset.folder; ui.sel=0; closeSide(); render(); }
+  if (res.stop_reason === 'refusal') throw new Error('Claude declined to process this chat.');
+  if (res.stop_reason === 'max_tokens') throw new Error('Claude’s answer was cut off. Try again.');
+  const text = res.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  try { return JSON.parse(text); } catch { throw new Error('Claude returned an unexpected answer. Try again.'); }
+}
+const ANALYZE_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['title','summary','tags','folder','keywords'],
+  properties: {
+    title: { type:'string', description:'Specific title, at most 8 words, no provider name' },
+    summary: { type:'string', description:'1-2 sentences: what the person wanted and what came out of it' },
+    tags: { type:'array', items:{ type:'string' }, description:'2-5 short lowercase topic tags' },
+    folder: { type:'string', description:'Folder path like "Work/Marketing", or empty string' },
+    keywords: { type:'array', items:{ type:'string' }, description:'6-15 lowercase search terms incl. synonyms and specific names' },
+  },
 };
-$('#tags').onclick = e => { const a = e.target.closest('[data-tag]'); if (a){ ui.view='tag'; ui.tag=a.dataset.tag; ui.sel=0; closeSide(); render(); } };
-$('#addFolder').onclick = () => {
-  const n = prompt('Folder name (use / for sub-folders, e.g. Work/Startup):', ui.view==='folder' ? ui.folder + '/' : '');
-  const f = (n||'').trim().replace(/^\/+|\/+$/g,'');
-  if (f){ if (!db.folders.includes(f)) db.folders.push(f); ui.view='folder'; ui.folder=f; save(); render(); }
-};
-$('#chips').onclick = e => { const b = e.target.closest('[data-prov]'); if (b){ const k=b.dataset.prov; ui.providers.has(k)?ui.providers.delete(k):ui.providers.add(k); ui.sel=0; render(); } };
-$('#list').onclick = e => {
-  if (e.target.closest('[data-open-settings]')) { e.preventDefault(); openSettings(); return; }
-  const card = e.target.closest('.card'); if (!card) return;
-  const c = db.chats.find(x => x.id === card.dataset.id), act = e.target.closest('[data-act]')?.dataset.act;
-  if (act === 'pin'){ c.pinned = !c.pinned; save(); render(); }
-  else if (act === 'edit') openEditor(c);
-  else if (act === 'copy') navigator.clipboard?.writeText(c.url).then(() => toast('Link copied'), () => toast(c.url));
-  else openChat(c);
-};
-$('#q').oninput = e => { ui.q = e.target.value; ui.sel = 0; render(); };
-$('#addBtn').onclick = () => openEditor();
-$('#openAll').onclick = openAll;
-$('#menuBtn').onclick = () => $('#side').classList.toggle('open');
-function closeSide(){ $('#side').classList.remove('open'); }
+async function analyzeChat({ url, title, provider, context, notes }){
+  const folders = allFolders();
+  const tags = [...new Set(db.chats.flatMap(c => c.tags || []))].slice(0, 80);
+  const user = [
+    'Here is one saved chat. Work out what it is about so the person can find it again later by searching.',
+    '',
+    `<chat provider="${PROVIDERS[provider]?.name || provider}" url="${url}">`,
+    `<page_title>${title || '(none)'}</page_title>`,
+    notes ? `<my_notes>${notes}</my_notes>` : '',
+    `<conversation_excerpt>\n${(context || '').slice(0, CTX_MAX) || '(no conversation text captured; rely on the title and URL)'}\n</conversation_excerpt>`,
+    '</chat>',
+    '',
+    `Existing folders: ${folders.length ? folders.join(' | ') : '(none yet)'}`,
+    `Existing tags: ${tags.length ? tags.join(', ') : '(none yet)'}`,
+    '',
+    'Rules: reuse an existing folder and existing tags when they fit; only propose a new folder when none fits, keeping it short (1-2 levels). Use an empty folder if the topic is unclear. Write the title and summary in the language of the conversation. "Me:" lines are the person, "AI:" lines are the assistant.',
+  ].filter(l => l !== '').join('\n');
+  const r = await askClaudeJSON({
+    system: 'You organize a person’s library of saved AI chat links. You read a chat excerpt and return compact, specific metadata that makes it easy to find again.',
+    user, schema: ANALYZE_SCHEMA,
+  });
+  return {
+    title: String(r.title || '').trim().slice(0, 120),
+    summary: String(r.summary || '').trim().slice(0, 400),
+    tags: parseTags((r.tags || []).join(',')).slice(0, 6),
+    folder: cleanFolder(r.folder),
+    keywords: [...new Set((r.keywords || []).map(k => String(k).toLowerCase().trim()).filter(Boolean))].slice(0, 20),
+  };
+}
+async function askClaudeSearch(){
+  const q = ui.q.trim();
+  if (!q || ui.aiBusy) return;
+  ui.aiBusy = true; render();
+  try {
+    const pool = scoped().slice(0, 400);
+    const lines = pool.map(c => [c.id, c.title, c.folder, (c.tags||[]).join(' '), c.summary || (c.keywords||[]).join(' ') || c.notes, (c.context||'').slice(0, 160).replace(/\s+/g,' ')].join(' | '));
+    const r = await askClaudeJSON({
+      system: 'You help a person find one of their saved AI chats. Match by meaning, not just exact words.',
+      user: `What I'm looking for: "${q}"\n\nMy saved chats, one per line (id | title | folder | tags | summary or keywords | start of conversation):\n${lines.join('\n')}\n\nReturn the ids of the chats that match, best match first, at most 8. Return an empty list if nothing fits.`,
+      schema: { type:'object', additionalProperties:false, required:['ids'], properties:{ ids:{ type:'array', items:{ type:'string' } } } },
+      maxTokens: 2000,
+    });
+    const valid = new Set(pool.map(c => c.id));
+    ui.aiIds = (r.ids || []).filter(id => valid.has(id));
+    ui.sel = 0;
+    if (!ui.aiIds.length) toast('Claude didn’t find a matching chat either');
+  } catch (e){ toast(e.message); }
+  ui.aiBusy = false; render();
+}
+async function bulkAnalyze(){
+  const todo = db.chats.filter(c => !c.summary);
+  if (!todo.length) return setStatus('Every chat already has a summary.');
+  if (!confirm(`Ask Claude to analyze ${todo.length} chat(s)? This uses your API credits.`)) return;
+  let done = 0;
+  for (const c of todo){
+    setStatus(`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Analyzing ${done + 1} of ${todo.length}: ${esc(c.title)}`);
+    try {
+      const r = await analyzeChat(c);
+      c.summary = r.summary; c.keywords = r.keywords;
+      if (!c.tags.length) c.tags = r.tags;
+      if (!c.folder && r.folder) c.folder = r.folder;
+      if (genericTitle(c.title) || c.title === c.url) c.title = r.title;
+      done++; save(); render();
+    } catch (e){ setStatus(`<span style="color:var(--danger)">${esc(e.message)}</span>`); return; }
+  }
+  setStatus(`${icon('check')} Analyzed ${done} chat(s).`);
+}
+function setStatus(h){ $('#s-status').innerHTML = h; }
 
-$('#editForm').url.addEventListener('input', e => { const p = detect(e.target.value.trim()); if (p !== 'other' || !editing) { $('#editForm').provider.value = p; setOpenIn(openIn); } });
-$('#editForm').provider.onchange = () => setOpenIn(openIn);
-$('#openInSeg').onclick = e => { const b = e.target.closest('button'); if (b) setOpenIn(b.dataset.v); };
-$('#editForm').onsubmit = e => { if (e.submitter?.value === 'ok') saveEditor(); };
-$('#cancelEdit').onclick = () => $('#editDlg').close();
-$('#delBtn').onclick = () => { if (editing && confirm(`Delete "${editing.title}"?`)) { db.chats = db.chats.filter(c => c !== editing); save(); render(); $('#editDlg').close(); } };
+/* ============================================================
+   Context menu
+   ============================================================ */
+function showMenu(x, y, items){
+  const m = $('#menu');
+  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' : `<button data-i="${i}" class="${it.danger ? 'danger' : ''}">${icon(it.icon)}${esc(it.label)}</button>`).join('');
+  m.classList.add('on');
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth - r.width - 8) + 'px';
+  m.style.top = Math.min(y, innerHeight - r.height - 8) + 'px';
+  m.onclick = e => { const b = e.target.closest('[data-i]'); if (b){ hideMenu(); items[+b.dataset.i].run(); } };
+}
+function hideMenu(){ $('#menu').classList.remove('on'); }
+function chatMenu(c, x, y){
+  const p = PROVIDERS[c.provider];
+  const appUrl = appLink(c), canApp = !/^https?:/i.test(appUrl);
+  const items = [
+    { icon: c.openIn === 'app' && canApp ? 'app' : 'globe', label: 'Open', run: () => openChat(c) },
+    c.openIn === 'app' ? { icon:'globe', label:'Open in Browser', run: () => openChat(c, 'web') }
+      : canApp ? { icon:'app', label:`Open in ${p.name} App`, run: () => openChat(c, 'app') } : null,
+    '-',
+    { icon:'pencil', label:'Edit…', run: () => openEditor(c) },
+    { icon: c.pinned ? 'starfill' : 'star', label: c.pinned ? 'Unpin' : 'Pin', run: () => { c.pinned = !c.pinned; save(); render(); } },
+    { icon:'folder', label:'Move to Folder…', run: () => { const f = prompt('Move to folder (blank = Unfiled):', c.folder); if (f !== null){ c.folder = cleanFolder(f); save(); render(); } } },
+    db.settings.apiKey ? { icon:'sparkles', label:'Analyze with Claude', run: () => analyzeOne(c) } : null,
+    { icon:'copy', label:'Copy Link', run: () => copy(c.url) },
+    '-',
+    { icon:'trash', label:'Delete', danger:true, run: () => removeChat(c) },
+  ].filter(Boolean);
+  showMenu(x, y, items);
+}
+async function analyzeOne(c){
+  toast('Claude is reading “' + c.title + '”…');
+  try {
+    const r = await analyzeChat(c);
+    c.summary = r.summary; c.keywords = r.keywords;
+    if (!c.tags.length) c.tags = r.tags;
+    if (!c.folder && r.folder) c.folder = r.folder;
+    if (genericTitle(c.title)) c.title = r.title;
+    save(); render(); toast('Updated with Claude’s summary');
+  } catch (e){ toast(e.message); }
+}
+function removeChat(c){
+  const idx = db.chats.indexOf(c);
+  db.chats.splice(idx, 1); save(); render();
+  toast(`Deleted “${c.title}”`, 'Undo', () => { db.chats.splice(idx, 0, c); save(); render(); });
+}
+function copy(text){ navigator.clipboard?.writeText(text).then(() => toast('Link copied'), () => prompt('Copy this link:', text)); }
 
-document.addEventListener('keydown', e => {
-  if (document.querySelector('dialog[open]')) return;
-  const inSearch = document.activeElement === $('#q');
-  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !inSearch;
-  if (typing) return;
-  if (e.key === '/' && !inSearch){ e.preventDefault(); $('#q').focus(); $('#q').select(); return; }
-  if (e.key === 'n' && !inSearch && !e.metaKey && !e.ctrlKey){ e.preventDefault(); openEditor(); return; }
-  if (e.key === 'Escape' && inSearch){ $('#q').value=''; ui.q=''; $('#q').blur(); render(); return; }
-  const { list } = visible();
-  if (e.key === 'ArrowDown'){ e.preventDefault(); ui.sel = Math.min(ui.sel+1, list.length-1); render(); scrollSel(); }
-  if (e.key === 'ArrowUp'){ e.preventDefault(); ui.sel = Math.max(ui.sel-1, 0); render(); scrollSel(); }
-  if (e.key === 'Enter' && list[ui.sel]){ e.preventDefault(); openChat(list[ui.sel]); }
-});
-function scrollSel(){ document.querySelector('.card.sel')?.scrollIntoView({block:'nearest'}); }
+/* ============================================================
+   Toast
+   ============================================================ */
+function toast(msg, actionLabel, action, ms = 3200){
+  $('#toastMsg').textContent = msg;
+  const b = $('#toastBtn'); b.textContent = actionLabel || ''; b.onclick = () => { $('#toast').classList.remove('on'); action && action(); };
+  $('#toast').classList.add('on');
+  clearTimeout(toast.h); toast.h = setTimeout(() => $('#toast').classList.remove('on'), ms);
+}
 
-// ---------- settings ----------
-function openSettings(){
-  const here = location.href.split('#')[0];
-  $('#bookmarklet').href = `javascript:void(window.open(${JSON.stringify(here)}+'#add='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title),'_blank'))`;
-  renderTpl();
-  closeSide();
-  $('#setDlg').showModal();
+/* ============================================================
+   Settings
+   ============================================================ */
+function bookmarkletHref(){
+  const site = location.href.split('#')[0];
+  const src = `(()=>{const S=${JSON.stringify(site)};const q=s=>[...document.querySelectorAll(s)];let p=[];`
+    + `for(const s of ['[data-message-author-role]','user-query,model-response','[data-testid="user-message"],.font-claude-response,.font-claude-message']){`
+    + `const n=q(s);if(n.length){p=n.map(e=>{const u=e.getAttribute('data-message-author-role')==='user'||/user/i.test(e.tagName+' '+(e.getAttribute('data-testid')||''));return(u?'Me: ':'AI: ')+e.innerText.trim()});break}}`
+    + `let t=(p.length?p.join('\\n\\n'):(document.querySelector('main')||document.body).innerText).replace(/\\n{3,}/g,'\\n\\n');`
+    + `if(t.length>${CTX_MAX})t=t.slice(0,${CTX_MAX - 1500})+'\\n…\\n'+t.slice(-1500);`
+    + `window.open(S+'#add='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&ctx='+encodeURIComponent(t),'_blank')})()`;
+  return 'javascript:' + encodeURIComponent(src);
+}
+function renderAppStatus(){
+  const rows = [
+    ['ok', 'Claude desktop app: works', 'The app registers <code>claude://</code>, and its link handler opens <code>claude://claude.ai/chat/&lt;id&gt;</code> straight to that conversation (project links work too). Your browser may ask “Open Claude?” the first time. Tick “Always allow”.'],
+    ['no', 'ChatGPT desktop app: opens the website', 'The current ChatGPT Mac app only accepts <code>codex://</code> links for its own threads and shared links. It has no link that opens a regular chat, so these open in your browser. The iPhone and Android apps open chatgpt.com links directly.'],
+    ['no', 'Gemini: opens the website', 'Google has no Gemini Mac app. On a phone, gemini.google.com links open the Gemini app.'],
+  ];
+  $('#appStatus').innerHTML = rows.map(([s, t, d]) => `<div class="status-row"><span class="${s}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
 }
 function renderTpl(){
   $('#tplRows').innerHTML = Object.entries(PROVIDERS).map(([k,p]) =>
-    `<label>${p.name} app link<input data-tpl="${k}" value="${esc(db.templates[k])}"></label>`).join('');
+    `<label>${p.name}</label><input class="field" data-tpl="${k}" value="${esc(db.templates[k])}" spellcheck="false">`).join('');
 }
-$('#openSettings').onclick = openSettings;
-$('#bookmarklet').onclick = e => { e.preventDefault(); toast('Drag this button to your bookmarks bar'); };
+function openSettings(tab){
+  $('#bookmarklet').href = bookmarkletHref();
+  renderAppStatus(); renderTpl();
+  $('#s-key').value = db.settings.apiKey; $('#s-model').value = db.settings.model; $('#s-auto').checked = db.settings.autoAI;
+  setStatus(db.settings.apiKey ? `${icon('check')} Claude is on.` : 'Claude is off. Search and suggestions still work without it.');
+  $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === db.settings.theme));
+  if (tab) selectTab(tab);
+  closeSide();
+  if (!$('#setDlg').open) $('#setDlg').showModal();
+}
+function selectTab(t){
+  $$('#setTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  $$('.tabpane').forEach(p => p.classList.toggle('on', p.dataset.pane === t));
+}
+function applyTheme(){
+  const t = db.settings.theme;
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+}
+
+/* ============================================================
+   Events
+   ============================================================ */
+$('#addFolder').innerHTML = icon('folderplus');
+$('#nav-lib').onclick = e => { const a = e.target.closest('[data-view]'); if (a){ ui.view = a.dataset.view; resetSel(); } };
+$('#nav-tags').onclick = e => { const a = e.target.closest('[data-tag]'); if (a){ ui.view = 'tag'; ui.tag = a.dataset.tag; resetSel(); } };
+$('#nav-folders').onclick = e => {
+  const del = e.target.closest('[data-delfolder]');
+  if (del){
+    e.stopPropagation();
+    const f = del.dataset.delfolder, n = db.chats.filter(c => inFolder(c, f)).length;
+    if (n && !confirm(`Remove the folder “${f}”? Its ${n} chat(s) stay saved and move to Unfiled.`)) return;
+    db.chats.forEach(c => { if (inFolder(c, f)) c.folder = ''; });
+    db.folders = db.folders.filter(x => x !== f && !x.startsWith(f + '/'));
+    if (ui.view === 'folder' && (ui.folder === f || ui.folder.startsWith(f + '/'))) ui.view = 'all';
+    save(); render(); return;
+  }
+  const a = e.target.closest('[data-folder]'); if (a){ ui.view = 'folder'; ui.folder = a.dataset.folder; resetSel(); }
+};
+function resetSel(){ ui.sel = 0; ui.aiIds = null; closeSide(); render(); $('#content').scrollTop = 0; }
+$('#addFolder').onclick = () => {
+  const n = prompt('New folder name (use / for a sub-folder, like Work/Startup):', ui.view === 'folder' ? ui.folder + '/' : '');
+  const f = cleanFolder(n);
+  if (f){ if (!db.folders.includes(f)) db.folders.push(f); ui.view = 'folder'; ui.folder = f; save(); render(); }
+};
+$('#provSeg').onclick = e => { const b = e.target.closest('[data-prov]'); if (b){ ui.provider = b.dataset.prov || null; ui.sel = 0; ui.aiIds = null; render(); } };
+$('#toggleSide').onclick = () => {
+  if (matchMedia('(max-width: 780px)').matches) $('#side').classList.toggle('open');
+  else $('#app').classList.toggle('collapsed');
+};
+function closeSide(){ $('#side').classList.remove('open'); }
+$('#openSettings').onclick = () => openSettings();
+$('#addBtn').onclick = () => openEditor();
+$('#openAll').onclick = openAll;
+
+$('#grid').onclick = e => {
+  if (e.target.closest('[data-open-settings]')){ e.preventDefault(); openSettings('capture'); return; }
+  if (e.target.closest('[data-ai-ask]')) return askClaudeSearch();
+  if (e.target.closest('[data-ai-clear]')){ ui.aiIds = null; render(); return; }
+  const cardEl = e.target.closest('.card'); if (!cardEl) return;
+  const c = db.chats.find(x => x.id === cardEl.dataset.id); if (!c) return;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'pin'){ c.pinned = !c.pinned; save(); render(); }
+  else if (act === 'edit') openEditor(c);
+  else openChat(c);
+};
+$('#grid').oncontextmenu = e => {
+  const cardEl = e.target.closest('.card'); if (!cardEl) return;
+  e.preventDefault();
+  const c = db.chats.find(x => x.id === cardEl.dataset.id);
+  const { list } = visible(); ui.sel = list.indexOf(c); render();
+  chatMenu(c, e.clientX, e.clientY);
+};
+document.addEventListener('click', e => { if (!e.target.closest('#menu')) hideMenu(); });
+document.addEventListener('scroll', hideMenu, true);
+window.addEventListener('blur', hideMenu);
+
+/* drag a card onto a folder / Pinned / Unfiled */
+$('#grid').addEventListener('dragstart', e => {
+  const cardEl = e.target.closest('.card'); if (!cardEl) return;
+  const c = db.chats.find(x => x.id === cardEl.dataset.id);
+  e.dataTransfer.setData('application/x-agentmash', cardEl.dataset.id);
+  e.dataTransfer.setData('text/uri-list', c.url);
+  e.dataTransfer.effectAllowed = 'copyMove';
+  cardEl.classList.add('dragging');
+});
+$('#grid').addEventListener('dragend', e => e.target.closest?.('.card')?.classList.remove('dragging'));
+$('#side').addEventListener('dragover', e => {
+  const t = e.target.closest('[data-drop]');
+  if (!t || !e.dataTransfer.types.includes('application/x-agentmash')) return;
+  e.preventDefault(); e.stopPropagation();
+  $$('.nav-item.drop').forEach(x => x !== t && x.classList.remove('drop')); t.classList.add('drop');
+});
+$('#side').addEventListener('dragleave', e => e.target.closest?.('[data-drop]')?.classList.remove('drop'));
+$('#side').addEventListener('drop', e => {
+  const t = e.target.closest('[data-drop]'); const id = e.dataTransfer.getData('application/x-agentmash');
+  $$('.nav-item.drop').forEach(x => x.classList.remove('drop'));
+  if (!t || !id) return;
+  e.preventDefault(); e.stopPropagation();
+  const c = db.chats.find(x => x.id === id); if (!c) return;
+  const kind = t.dataset.drop;
+  if (kind === 'folder'){ c.folder = t.dataset.folder; toast(`Moved to ${c.folder}`); }
+  else if (kind === 'unfiled'){ c.folder = ''; toast('Moved to Unfiled'); }
+  else if (kind === 'pinned'){ c.pinned = true; toast('Pinned'); }
+  else return;
+  save(); render();
+});
+/* drop a link from another tab onto the window */
+let dragDepth = 0;
+const isExternalLinkDrag = e => !e.dataTransfer.types.includes('application/x-agentmash') && (e.dataTransfer.types.includes('text/uri-list') || e.dataTransfer.types.includes('text/plain'));
+window.addEventListener('dragenter', e => { if (isExternalLinkDrag(e)){ dragDepth++; $('#dropOv').classList.add('on'); } });
+window.addEventListener('dragleave', e => { if (isExternalLinkDrag(e) && --dragDepth <= 0){ dragDepth = 0; $('#dropOv').classList.remove('on'); } });
+window.addEventListener('dragover', e => { if (isExternalLinkDrag(e)) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  if (!isExternalLinkDrag(e)) return;
+  e.preventDefault(); dragDepth = 0; $('#dropOv').classList.remove('on');
+  const raw = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').split('\n').find(l => /^https?:\/\//i.test(l.trim()));
+  if (!raw) return toast('Drop a link to a chat');
+  const url = raw.trim();
+  const existing = db.chats.find(c => normUrl(c.url) === normUrl(url));
+  openEditor(existing || null, existing ? null : { url, provider: detect(url) });
+});
+
+/* search */
+$('#q').addEventListener('input', e => { ui.q = e.target.value; ui.sel = 0; ui.aiIds = null; render(); });
+
+/* keyboard */
+document.addEventListener('keydown', e => {
+  if (document.querySelector('dialog[open]')) return;
+  if (e.key === 'Escape') hideMenu();
+  const inSearch = document.activeElement === $('#q');
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('#q').focus(); $('#q').select(); return; }
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !inSearch) return;
+  const { list } = visible();
+  const cur = list[ui.sel];
+  if (!inSearch && !e.metaKey && !e.ctrlKey && !e.altKey){
+    if (e.key === '/'){ e.preventDefault(); $('#q').focus(); $('#q').select(); return; }
+    if (e.key === 'n'){ e.preventDefault(); openEditor(); return; }
+    if (e.key === 'e' && cur){ e.preventDefault(); openEditor(cur); return; }
+    if (e.key === 'p' && cur){ cur.pinned = !cur.pinned; save(); render(); return; }
+    if ((e.key === 'Backspace' || e.key === 'Delete') && cur){ e.preventDefault(); removeChat(cur); return; }
+  }
+  if (e.key === 'Escape' && inSearch){ $('#q').value = ''; ui.q = ''; ui.aiIds = null; $('#q').blur(); render(); return; }
+  if (e.key === 'Enter' && e.shiftKey && inSearch && db.settings.apiKey){ e.preventDefault(); askClaudeSearch(); return; }
+  const cols = Math.max(1, getComputedStyle($('#grid')).gridTemplateColumns.split(' ').length);
+  const move = { ArrowDown: cols, ArrowUp: -cols, ArrowRight: inSearch ? 0 : 1, ArrowLeft: inSearch ? 0 : -1 }[e.key];
+  if (move){ e.preventDefault(); ui.sel = Math.max(0, Math.min(list.length - 1, ui.sel + move)); render(); $('.card.sel')?.scrollIntoView({ block:'nearest' }); return; }
+  if (e.key === 'Enter' && cur){ e.preventDefault(); openChat(cur); }
+});
+
+/* editor events */
+F.url.addEventListener('input', () => {
+  const p = detect(F.url.value.trim());
+  // for a new chat, follow the provider's default until the person picks web/app themselves
+  if (!editing && !openTouched) openIn = p === 'claude' && !IS_MOBILE ? 'app' : 'web';
+  if (p !== 'other' || !editing) setProv(p); else setOpen(openIn);
+});
+F.context.addEventListener('input', () => { updateCtxLabel(); if (db.settings.apiKey) setAiBar(); });
+$('#provPick').onclick = e => { const b = e.target.closest('[data-p]'); if (b) setProv(b.dataset.p); };
+$('#openPick').onclick = e => { const b = e.target.closest('[data-v]'); if (b){ openTouched = true; setOpen(b.dataset.v); } };
+$('#aiRun').onclick = () => { if ($('#aiRun').dataset.mode === 'setup'){ $('#editDlg').close(); openSettings('ai'); } else aiFill(); };
+$('#editForm').addEventListener('submit', e => { if (e.submitter?.value === 'ok') saveEditor(); });
+$('#cancelEdit').onclick = () => $('#editDlg').close();
+$('#delBtn').onclick = () => { if (editing){ const c = editing; $('#editDlg').close(); removeChat(c); } };
+
+/* settings events */
+$('#setTabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (b) selectTab(b.dataset.tab); };
+$('#bookmarklet').onclick = e => { e.preventDefault(); toast('Drag this button onto your bookmarks bar'); };
 $('#tplRows').oninput = e => { const k = e.target.dataset.tpl; if (k){ db.templates[k] = e.target.value.trim() || '{url}'; save(); } };
 $('#resetTpl').onclick = () => { db.templates = defaultTemplates(); save(); renderTpl(); };
+$('#s-key').addEventListener('change', e => { db.settings.apiKey = e.target.value.trim(); clientCache = null; save(); render(); setStatus(db.settings.apiKey ? 'Key saved. Click Test to check it.' : 'Claude is off.'); });
+$('#s-model').onchange = e => { db.settings.model = e.target.value; save(); };
+$('#s-auto').onchange = e => { db.settings.autoAI = e.target.checked; save(); };
+$('#s-test').onclick = async () => {
+  db.settings.apiKey = $('#s-key').value.trim(); clientCache = null; save(); render();
+  setStatus('<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Checking…');
+  try {
+    const r = await askClaudeJSON({ system:'Reply with JSON only.', user:'Return {"ok": true}.', schema:{ type:'object', additionalProperties:false, required:['ok'], properties:{ ok:{ type:'boolean' } } }, maxTokens: 1000 });
+    setStatus(r.ok ? `${icon('check')} Connected. Claude is ready.` : 'Connected, but got an unexpected reply.');
+  } catch (e){ setStatus(`<span style="color:var(--danger)">${esc(e.message)}</span>`); }
+};
+$('#s-bulk').onclick = bulkAnalyze;
+$('#themeSeg').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; db.settings.theme = b.dataset.v; save(); applyTheme(); $$('#themeSeg button').forEach(x => x.classList.toggle('on', x === b)); };
 $('#closeSet').onclick = () => { $('#setDlg').close(); render(); };
-
-// ---------- backup ----------
 $('#exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const out = { ...db, settings: { ...db.settings, apiKey: '' } };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `agent-mash-${new Date().toISOString().slice(0,10)}.json`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -461,28 +1261,42 @@ $('#importFile').onchange = async e => {
   const file = e.target.files[0]; if (!file) return;
   try {
     const d = normalize(JSON.parse(await file.text()));
-    const known = new Set(db.chats.map(c => c.url));
-    const fresh = d.chats.filter(c => c.url && !known.has(c.url)).map(c => ({ id: uid(), created: Date.now(), lastOpened: 0, pinned:false, tags:[], folder:'', notes:'', openIn:'web', provider: detect(c.url), title: c.url, ...c }));
+    const known = new Set(db.chats.map(c => normUrl(c.url)));
+    const fresh = d.chats.filter(c => c.url && !known.has(normUrl(c.url))).map(c => ({ ...c, id: uid(), provider: c.provider || detect(c.url), title: c.title || c.url }));
     db.chats.push(...fresh);
     db.folders = [...new Set([...db.folders, ...d.folders])];
     save(); render(); toast(`Imported ${fresh.length} new chat(s)`);
-  } catch { toast('That file is not a valid Agent Mash backup'); }
+  } catch { toast('That file isn’t an Agent Mash backup'); }
   e.target.value = '';
 };
 
-// ---------- capture via bookmarklet / share link (#add=URL&title=TITLE) ----------
+/* other tabs/windows of this app stay in sync */
+window.addEventListener('storage', e => { if (e.key === KEY){ db = load(); render(); } });
+
+/* ============================================================
+   Capture: #add=URL&title=TITLE&ctx=TEXT (from the bookmark button)
+   ============================================================ */
 function handleHash(){
   if (!location.hash.startsWith('#add=')) return;
   const p = new URLSearchParams(location.hash.slice(1));
   history.replaceState(null, '', location.pathname + location.search);
-  const url = p.get('add'); if (!url) return;
+  const url = (p.get('add') || '').trim(); if (!url) return;
   const provider = detect(url);
-  const existing = db.chats.find(c => c.url === url);
-  openEditor(existing || null, existing ? null : { url, provider, title: cleanTitle(p.get('title'), provider) });
+  const context = (p.get('ctx') || '').slice(0, CTX_MAX);
+  const existing = db.chats.find(c => normUrl(c.url) === normUrl(url));
+  if (existing){
+    if (context && context.length > (existing.context || '').length) existing.context = context;
+    openEditor(existing);
+    toast('You already saved this chat. It’s open for editing.');
+    return;
+  }
+  openEditor(null, { url, provider, title: cleanTitle(p.get('title')), context });
+  localSuggest(false);
+  if (db.settings.apiKey && db.settings.autoAI && (context || !genericTitle(F.title.value))) aiFill();
 }
 window.addEventListener('hashchange', handleHash);
-window.addEventListener('storage', e => { if (e.key === KEY){ db = load(); render(); } });
 
+applyTheme();
 render();
 handleHash();
 })();
