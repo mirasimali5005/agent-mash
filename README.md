@@ -1,9 +1,15 @@
 # Agent Mash
 
-One searchable home for your AI chats across ChatGPT, Claude, Gemini, Kimi, DeepSeek, Grok, Perplexity and 25+ more. It's a local-first web app styled like a native macOS app, in matte black (default) or graphite light, and you can install it to your Dock.
+**The private library for your best AI conversations.**
 
-**Live:** https://mirasimali5005.github.io/agent-mash/
+Save the ChatGPT, Claude, Gemini, Kimi, DeepSeek and Grok chats that matter (34 providers in all) in one calm, searchable place. It's like Obsidian or Apple Notes, but for AI chats: a library you control, not another extension inside the AI sites.
 
+- **Stays on your device.** No account, no server, no tracking. Chats live in your browser.
+- **You choose what to keep.** Save the conversations with real value, and find them again in seconds.
+- **Works across every AI you use**, opening each chat in its website or desktop app.
+- **Simple and durable.** Export a backup any time, in plain files you can open years from now.
+
+**Live:** https://mirasimali5005.github.io/agent-mash/ (styled like a native macOS app; install it to your Dock)
 ## What it does
 - **One-click capture.** A bookmark button saves the current chat's link, title and conversation text, so you don't have to describe each chat yourself.
 - **Understands chats.** Without AI, it pulls keywords from the conversation and suggests a folder. With an optional Claude API key, Claude writes the title, summary, tags, search keywords and folder.
@@ -43,5 +49,6 @@ Each major change has its own branch, so you can go back to it:
 | `theme/matte-graphite` | Matte black (default) and graphite light themes, and removed all purple |
 | `feature/provider-picker` | 34 built-in providers, type-ahead picker, custom providers |
 | `feature/drag-reorder` | Drag to reorder, drag to folders, sort menu, keyboard moves |
+| `feature/privacy-messaging` | Privacy-first positioning: welcome screen, privacy badge, Privacy settings tab, erase-all |
 
 `main` contains all of them and is what GitHub Pages publishes.

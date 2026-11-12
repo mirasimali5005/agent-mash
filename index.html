@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Agent Mash</title>
-<meta name="description" content="Searchable home for your ChatGPT, Claude and Gemini chats">
+<meta name="description" content="A private library for the AI conversations that matter. No account, no server, no tracking. Your chats stay in your browser.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -103,6 +103,10 @@ svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-widt
 aside{border-radius:22px;padding:14px 10px 10px;display:flex;flex-direction:column;min-height:0;transition:opacity .2s, transform .25s}
 .brand{display:flex;align-items:center;gap:9px;padding:2px 8px 12px;font-weight:650;font-size:14px}
 .brand img{width:24px;height:24px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.brand-sub{font-size:11px;font-weight:450;color:var(--text-3);margin-top:1px}
+.privacy-badge .lbl{color:var(--text-2);font-size:12px}
+.privacy-badge svg{color:var(--ok)}
+.privacy-badge.ai svg{color:var(--warn)}
 .side-scroll{overflow:auto;flex:1;margin:0 -4px;padding:0 4px;scrollbar-width:none}
 .side-scroll::-webkit-scrollbar{display:none}
 .sec{font-size:11px;font-weight:600;color:var(--text-3);margin:14px 10px 4px;display:flex;justify-content:space-between;align-items:center}
@@ -215,6 +219,16 @@ details.ctx summary::before{content:"›";display:inline-block;transition:transf
 details.ctx[open] summary::before{transform:rotate(90deg)}
 details.ctx textarea{margin-top:6px}
 .tabs{display:flex;justify-content:center;margin:2px 0 16px}
+.welcome{width:min(600px,calc(100vw - 24px));padding:28px 28px 22px;text-align:center}
+.welcome-icon{width:64px;height:64px;border-radius:15px;box-shadow:0 8px 24px -8px rgba(0,0,0,.5)}
+.welcome h2{margin:14px 0 4px;font-size:21px;font-weight:680;letter-spacing:-.01em}
+.welcome .sub{font-size:13.5px;margin-bottom:20px}
+.pillars{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left}
+.pillars > div{background:var(--field);border:1px solid var(--sep);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:4px}
+.pillars svg{width:18px;height:18px;color:var(--text-2);margin-bottom:2px}
+.pillars b{font-size:13px;font-weight:620}
+.pillars span{font-size:12px;color:var(--text-2);line-height:1.45}
+@media (max-width:560px){ .pillars{grid-template-columns:1fr} }
 .tabpane{display:none}.tabpane.on{display:block}
 .tabpane h4{margin:14px 0 6px;font-size:13px}
 .tabpane p{margin:0 0 8px;color:var(--text-2);font-size:12.5px}
@@ -225,6 +239,7 @@ details.ctx textarea{margin-top:6px}
 .status-row .ok{color:var(--ok)}.status-row .no{color:var(--warn)}
 .status-row div{flex:1}
 .status-row b{display:block;font-weight:600}
+.status-row .ok svg,.status-row .no svg{margin-top:1px}
 .status-row span{color:var(--text-2);font-size:12px}
 code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(--field);padding:1px 5px;border-radius:5px}
 .switch{position:relative;width:38px;height:22px;flex:none}
@@ -290,7 +305,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 
 <div class="app" id="app">
   <aside class="glass sheen" id="side">
-    <div class="brand"><img src="icon.svg" alt="">Agent Mash</div>
+    <div class="brand"><img src="icon.svg" alt=""><div><div>Agent Mash</div><div class="brand-sub">Private AI chat library</div></div></div>
     <div class="side-scroll">
       <div id="nav-lib"></div>
       <div class="sec">Folders <button id="addFolder" title="New folder"></button></div>
@@ -299,6 +314,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
       <div id="nav-tags"></div>
     </div>
     <div class="side-foot">
+      <div class="nav-item privacy-badge" id="privacyBadge" title="Where your data lives"><svg class="i"><use href="#i-lock"/></svg><span class="lbl" id="privacyText">Stays in this browser</span></div>
       <div class="nav-item" id="openSettings"><svg class="i"><use href="#i-gear"/></svg><span class="lbl">Settings</span><span class="ai-dot" id="aiDot" title="Claude AI"></span></div>
     </div>
   </aside>
@@ -355,7 +371,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 <!-- Settings sheet -->
 <dialog id="setDlg"><div class="sheet" style="width:min(620px,calc(100vw - 24px))">
   <div class="tabs"><div class="seg" id="setTabs">
-    <button data-tab="capture" class="on">Capture</button><button data-tab="apps">Apps</button><button data-tab="ai">AI</button><button data-tab="general">General</button>
+    <button data-tab="capture" class="on">Capture</button><button data-tab="apps">Apps</button><button data-tab="ai">AI</button><button data-tab="privacy">Privacy</button><button data-tab="general">General</button>
   </div></div>
 
   <section class="tabpane on" data-pane="capture">
@@ -401,13 +417,28 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div class="row" style="margin-top:12px"><button class="pill" id="s-bulk"><svg class="i"><use href="#i-sparkles"/></svg>Analyze chats without a summary</button></div>
   </section>
 
+  <section class="tabpane" data-pane="privacy">
+    <h3>Your data never leaves this browser</h3>
+    <p>Agent Mash is a private library, not a service. It has no account, no server, no analytics and no cookies. You decide which conversations to keep, and they're stored on this device.</p>
+    <div id="privacyFacts"></div>
+    <h4>What stays here</h4>
+    <p>Your chats, folders, tags, notes, captured conversation text and settings are kept in this browser's local storage. Clearing this site's data in the browser removes them, so keep a backup.</p>
+    <h4>The only things that ever go over the network</h4>
+    <p>• <b>The app itself.</b> GitHub Pages sends the page files once. It never receives your chats.<br>
+       • <b>Opening a chat.</b> Your browser goes to that AI's website or app, just like clicking a bookmark.<br>
+       • <b>Claude AI, only if you turn it on.</b> When you analyze a chat or use Ask Claude, that chat's text goes to <code>api.anthropic.com</code>, and the Claude SDK loads from <code>cdn.jsdelivr.net</code>. Without a key, neither happens.</p>
+    <h4>Start over</h4>
+    <p>Remove everything Agent Mash has stored in this browser. Export a backup first if you might want it back.</p>
+    <div class="row"><button class="pill" id="eraseAll" style="color:var(--danger)"><svg class="i"><use href="#i-trash"/></svg>Erase all data in this browser…</button></div>
+  </section>
+
   <section class="tabpane" data-pane="general">
     <h3>Appearance</h3>
     <div class="seg" id="themeSeg"><button data-v="dark">Matte black</button><button data-v="light">Graphite light</button><button data-v="auto">Match system</button></div>
     <h4>Install as a Mac app</h4>
     <p><b>Safari:</b> File → Add to Dock. <b>Chrome:</b> ⋮ → Cast, save and share → Install page as app. Agent Mash then opens in its own window with its own Dock icon.</p>
     <h4>Your data</h4>
-    <p>Everything stays in this browser. A backup moves your chats to another browser or device. Your API key is never included in it.</p>
+    <p>You own your data. Everything stays in this browser, and a backup is a plain JSON file you can keep anywhere or move to another device. Your API key is never included.</p>
     <div class="row"><button class="pill" id="exportBtn">Export backup…</button><button class="pill" id="importBtn">Import backup…</button></div>
     <input type="file" id="importFile" accept="application/json" hidden>
     <h4>Keyboard</h4>
@@ -415,6 +446,19 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
   </section>
 
   <div class="sheet-foot"><span class="flex"></span><button class="pill primary" id="closeSet">Done</button></div>
+</div></dialog>
+
+<dialog id="welcomeDlg"><div class="sheet welcome">
+  <img src="icon.svg" alt="" class="welcome-icon">
+  <h2>A calm place for your best AI work</h2>
+  <p class="sub">Agent Mash is a private library for the AI conversations that matter.</p>
+  <div class="pillars">
+    <div><svg class="i"><use href="#i-lock"/></svg><b>Stays on your device</b><span>No account. No server. No tracking. Your chats are stored in this browser and nowhere else.</span></div>
+    <div><svg class="i"><use href="#i-star"/></svg><b>You choose what to keep</b><span>Not every chat is worth saving. Keep the ones with real value, and find them again in seconds.</span></div>
+    <div><svg class="i"><use href="#i-stack"/></svg><b>Every AI you use</b><span>ChatGPT, Claude, Gemini, Kimi, DeepSeek, Grok and 28 more, all in one private place.</span></div>
+    <div><svg class="i"><use href="#i-copy"/></svg><b>Yours to take anywhere</b><span>Export a backup any time. It's plain JSON you can open years from now.</span></div>
+  </div>
+  <div class="sheet-foot"><button class="pill" id="welcomeCapture">Set up one-click capture</button><span class="flex"></span><button class="pill primary" id="welcomeStart">Start my library</button></div>
 </div></dialog>
 
 <div class="menu glass" id="menu"></div>
@@ -448,6 +492,8 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
   <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.6 0v2.5"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M12 3.5l7.5 3v5.2c0 4.4-3.1 7.6-7.5 8.8-4.4-1.2-7.5-4.4-7.5-8.8V6.5z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
 </svg>
@@ -796,6 +842,7 @@ function render(){
     barKeys.map(k => { const p = P(k), n = db.chats.filter(c => c.provider === k).length;
       return `<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${esc(p.name)} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`; }).join('');
 
+  renderPrivacyBadge();
   $('#aiDot').classList.toggle('on', !!db.settings.apiKey);
   $('#aiDot').title = db.settings.apiKey ? 'Claude AI is on' : 'Claude AI is off';
 
@@ -813,8 +860,9 @@ function render(){
       : `<div class="ai-row glass">${ui.aiBusy ? '<span class="spin"></span>' : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? 'disabled' : ''}>Ask Claude <kbd style="opacity:.6">⇧↩</kbd></button></div>`;
   }
   if (!db.chats.length){
-    html += `<div class="empty glass"><img class="big" src="icon.svg" alt=""><h2>Your AI chats, in one place</h2>
-      <p>Click <b>Add</b> and paste a ChatGPT, Claude or Gemini link,<br>or set up the one-click button in <a href="#" data-open-settings>Settings → Capture</a>.</p></div>`;
+    html += `<div class="empty glass"><img class="big" src="icon.svg" alt=""><h2>Save the conversations that matter</h2>
+      <p>Click <b>Add</b> and paste a link from any AI chat,<br>or set up the one-click button in <a href="#" data-open-settings>Settings → Capture</a>.</p>
+      <p class="hint" style="margin-top:14px">${icon('lock')} No account. No server. Everything stays in this browser.</p></div>`;
   } else if (!list.length){
     html += `<div class="empty glass"><h2>No matches</h2><p>Try fewer words${ui.provider ? ', or switch the provider filter back to All' : ''}.</p></div>`;
   } else {
@@ -1253,7 +1301,26 @@ function renderTpl(){
   $('#tplRows').innerHTML = keys.map(k =>
     `<label>${esc(P(k).name)}</label><input class="field" data-tpl="${k}" value="${esc(db.templates[k] || P(k).app)}" spellcheck="false">`).join('');
 }
+function storageBytes(){ try { return (localStorage.getItem(KEY) || '').length * 2; } catch { return 0; } }
+function fmtBytes(n){ return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB'; }
+function renderPrivacyBadge(){
+  const ai = !!db.settings.apiKey;
+  $('#privacyBadge').classList.toggle('ai', ai);
+  $('#privacyText').textContent = ai ? 'Local · Claude AI on' : 'Stays in this browser';
+  $('#privacyBadge').title = ai ? 'Your library is local. Chat text is sent to Anthropic only when you analyze or Ask Claude.' : 'Your library is stored only in this browser. Nothing is uploaded.';
+}
+function renderPrivacyFacts(){
+  const ai = !!db.settings.apiKey;
+  const rows = [
+    ['ok', 'No account, no server, no tracking', 'There is no sign-up, no database and no analytics. Nobody else can see your library.'],
+    ['ok', `${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} stored on this device`, `Using ${fmtBytes(storageBytes())} of this browser's local storage.`],
+    ai ? ['no', 'Claude AI is on', 'Chat text is sent to Anthropic only when you analyze a chat or use Ask Claude. Remove the key in the AI tab to turn it off.']
+       : ['ok', 'Claude AI is off', 'Nothing about your chats is sent anywhere.'],
+  ];
+  $('#privacyFacts').innerHTML = rows.map(([s, t, d]) => `<div class="status-row"><span class="${s}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
+}
 function openSettings(tab){
+  renderPrivacyFacts();
   $('#bookmarklet').href = bookmarkletHref();
   renderAppStatus(); renderTpl();
   $('#s-key').value = db.settings.apiKey; $('#s-model').value = db.settings.model; $('#s-auto').checked = db.settings.autoAI;
@@ -1561,6 +1628,17 @@ $('#s-test').onclick = async () => {
 $('#s-bulk').onclick = bulkAnalyze;
 $('#themeSeg').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; db.settings.theme = b.dataset.v; save(); applyTheme(); $$('#themeSeg button').forEach(x => x.classList.toggle('on', x === b)); };
 $('#closeSet').onclick = () => { $('#setDlg').close(); render(); };
+$('#privacyBadge').onclick = () => openSettings('privacy');
+$('#eraseAll').onclick = () => {
+  const n = db.chats.length;
+  if (!confirm(`Erase all ${n} saved chat(s), folders, providers and settings from this browser?\n\nThis can't be undone. Export a backup first if you might want them back.`)) return;
+  try { localStorage.removeItem(KEY); } catch {}
+  db = normalize(); db.settings.welcomed = true; save();
+  $('#setDlg').close(); render(); toast('Everything was erased from this browser');
+};
+$('#welcomeStart').onclick = () => { db.settings.welcomed = true; save(); $('#welcomeDlg').close(); };
+$('#welcomeCapture').onclick = () => { db.settings.welcomed = true; save(); $('#welcomeDlg').close(); openSettings('capture'); };
+$('#welcomeDlg').addEventListener('cancel', () => { db.settings.welcomed = true; save(); });
 $('#exportBtn').onclick = () => {
   const out = { ...db, settings: { ...db.settings, apiKey: '' } };
   const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
@@ -1611,6 +1689,7 @@ window.addEventListener('hashchange', handleHash);
 
 applyTheme();
 render();
+if (!db.settings.welcomed && !location.hash.startsWith('#add=')) $('#welcomeDlg').showModal();
 handleHash();
 })();
 </script>
