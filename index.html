@@ -406,20 +406,18 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 
   <section class="tabpane" data-pane="ai">
     <h3>Understand chats automatically <span class="chip" style="vertical-align:middle">optional</span></h3>
-    <p>With a Claude API key, Agent Mash reads the conversation text you capture and writes a <b>title, summary, tags, search keywords and a folder</b> for you. In search, <b>Ask Claude</b> also finds chats by meaning, not just exact words.</p>
+    <p>With a Claude API key, Agent Mash can read a chat's saved conversation text, <b>when you click “Fill in with Claude”</b>, and write a <b>title, summary, tags, search keywords and a folder</b> for you. Nothing is sent automatically. In search, <b>Ask Claude</b> also finds chats by meaning, not just exact words.</p>
     <p>Without a key, it still picks keywords and suggests a folder on its own, right in your browser.</p>
     <div class="form" style="grid-template-columns:110px 1fr">
       <label for="s-key">API key</label>
-      <div class="row"><input class="field" id="s-key" type="password" placeholder="sk-ant-…" style="flex:1" autocomplete="off"><button class="pill" id="s-test">Test</button></div>
-      <span></span><p class="hint">Get one at <code>console.anthropic.com</code>. It's stored only in this browser and sent only to <code>api.anthropic.com</code>. Pages hosted under the same <code>*.github.io</code> address can read this browser storage, so use a key with a low spend limit.</p>
+      <div class="row"><input class="field" id="s-key" type="password" placeholder="sk-ant-…" style="flex:1" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore><button class="pill" id="s-test">Test</button></div>
+      <span></span><p class="hint"><b>Kept in memory only.</b> The key is never saved to this browser, never put in backups and never in a link, so you'll enter it again after you reload or close Agent Mash. It's sent only to <code>api.anthropic.com</code>. Calling the API from a browser is less safe than calling it from a server, so use a key with a low spend limit that you can revoke. Get one at <code>console.anthropic.com</code>.</p>
       <label for="s-model">Model</label>
       <select class="field" id="s-model">
         <option value="claude-opus-5-5">Claude Opus 5.5 (best understanding)</option>
         <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (balanced)</option>
         <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option>
       </select>
-      <label>Auto-fill</label>
-      <div class="row"><label class="switch"><input type="checkbox" id="s-auto"><span></span></label><span class="hint">Analyze each captured chat automatically</span></div>
       <span></span><p class="hint" id="s-status"></p>
     </div>
     <div class="row" style="margin-top:12px"><button class="pill" id="s-bulk"><svg class="i"><use href="#i-sparkles"/></svg>Analyze chats without a summary</button></div>
@@ -739,9 +737,7 @@ function sanitizeSettings(v, strict){
   const st = isPlainObject(v) ? v : {};
   checkKeys(st, SETTING_KEYS, 'settings', strict);
   return {
-    apiKey: '',                                   // never trusted from storage or files
     model: MODELS.includes(st.model) ? st.model : 'claude-opus-5-5',
-    autoAI: st.autoAI !== false,
     theme: ['dark','light','auto'].includes(st.theme) && st.themeV2 ? st.theme : 'dark',
     themeV2: true,
     sort: ['manual','recent','added','name'].includes(st.sort) ? st.sort : 'manual',
@@ -777,11 +773,19 @@ function normalize(d){
     return lib;
   } catch { return sanitizeLibrary({}, { strict:false }); }
 }
+/* The Claude API key lives only in this variable. It is never written to storage, backups or URLs. */
+let sessionKey = '';
+let purgedStoredKey = false;
 function load(){
   let raw = null;
   try { raw = localStorage.getItem(KEY); } catch {}
   if (!raw) return normalize();
-  try { return normalize(JSON.parse(raw)); }
+  try {
+    const parsed = JSON.parse(raw);
+    // Earlier versions saved the key in localStorage. Remember that, so we can purge it and tell the person to rotate it.
+    if (parsed && parsed.settings && typeof parsed.settings.apiKey === 'string' && parsed.settings.apiKey.trim()) purgedStoredKey = true;
+    return normalize(parsed);
+  }
   catch {
     // Unreadable data is set aside instead of being overwritten by the next save.
     try { localStorage.setItem(KEY + '.unreadable-' + Date.now(), raw); } catch {}
@@ -793,6 +797,7 @@ function save(){
   catch { toast('Couldn’t save. Browser storage is full or blocked.'); return false; }
 }
 db = load();
+if (purgedStoredKey) save();   // rewrites storage without the old key
 Object.entries(db.customProviders).forEach(([k, p]) => registerProvider(k, { ...p, custom:true }));
 
 /* ============================================================
@@ -1048,8 +1053,8 @@ function render(){
 
   renderPrivacyBadge();
   renderBackupState();
-  $('#aiDot').classList.toggle('on', !!db.settings.apiKey);
-  $('#aiDot').title = db.settings.apiKey ? 'Claude AI is on' : 'Claude AI is off';
+  $('#aiDot').classList.toggle('on', !!sessionKey);
+  $('#aiDot').title = sessionKey ? 'Claude AI is on' : 'Claude AI is off';
 
   const { list, tokens, ai } = visible();
   const title = ui.view === 'folder' ? ui.folder.split('/').pop() : ui.view === 'tag' ? '#' + ui.tag
@@ -1059,7 +1064,7 @@ function render(){
   ui.sel = Math.min(ui.sel, Math.max(0, list.length - 1));
 
   const parts = [];
-  if (ui.q.trim().length >= 3 && db.settings.apiKey){
+  if (ui.q.trim().length >= 3 && sessionKey){
     parts.push(ai
       ? html`<div class="ai-row glass">${icon('sparkles')}<span class="t">Claude’s matches for “${ui.q}”</span><button class="pill" data-ai-clear>Show keyword results</button></div>`
       : html`<div class="ai-row glass">${ui.aiBusy ? html`<span class="spin"></span>` : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? html`disabled` : ''}>Ask Claude <kbd style="opacity:.6">⇧↩</kbd></button></div>`);
@@ -1193,7 +1198,7 @@ function updateCtxLabel(){
 }
 function setAiBar(state, text){
   const bar = $('#aiBar');
-  if (!db.settings.apiKey){
+  if (!sessionKey){
     bar.hidden = false;
     $('#aiBarText').textContent = 'Add a Claude API key in Settings → AI to fill this in automatically.';
     $('#aiRun').textContent = 'Set up'; $('#aiRun').dataset.mode = 'setup'; $('#aiRun').disabled = false;
@@ -1268,12 +1273,12 @@ function saveEditor(){
    ============================================================ */
 let clientCache = null;
 async function getClient(){
-  if (!db.settings.apiKey) throw new Error('Add your Claude API key in Settings → AI first.');
-  if (clientCache?.key === db.settings.apiKey) return clientCache;
+  if (!sessionKey) throw new Error('Add your Claude API key in Settings → AI first.');
+  if (clientCache?.key === sessionKey) return clientCache;
   let mod;
   try { mod = await import(SDK_URL); } catch { throw new Error('Couldn’t load the Claude SDK. Check your connection.'); }
   const Anthropic = mod.default;
-  clientCache = { key: db.settings.apiKey, Anthropic, client: new Anthropic({ apiKey: db.settings.apiKey, dangerouslyAllowBrowser: true }) };
+  clientCache = { key: sessionKey, Anthropic, client: new Anthropic({ apiKey: sessionKey, dangerouslyAllowBrowser: true }) };
   return clientCache;
 }
 async function askClaudeJSON({ system, user, schema, maxTokens = 4000 }){
@@ -1410,7 +1415,7 @@ function chatMenu(c, x, y){
     { icon:'up', label:'Move to Top', run: () => moveToEdge(c, true) },
     { icon:'down', label:'Move to Bottom', run: () => moveToEdge(c, false) },
     { icon:'folder', label:'Move to Folder…', run: () => { const f = prompt('Move to folder (blank = Unfiled):', c.folder); if (f !== null){ c.folder = cleanFolder(f); save(); render(); } } },
-    db.settings.apiKey ? { icon:'sparkles', label:'Analyze with Claude', run: () => analyzeOne(c) } : null,
+    sessionKey ? { icon:'sparkles', label:'Analyze with Claude', run: () => analyzeOne(c) } : null,
     { icon:'copy', label:'Copy Link', run: () => copy(c.url) },
     { icon:'copy', label:'Copy as Markdown', run: () => navigator.clipboard?.writeText(chatToMarkdown(c)).then(() => toast('Markdown copied'), () => toast('Couldn’t copy')) },
     { icon:'download', label:'Save as Markdown', run: () => downloadBlob(new Blob([chatToMarkdown(c)], { type:'text/markdown' }), fileSafe(c.title) + '.md') },
@@ -1527,13 +1532,13 @@ function statusRows(rows){
 function storageBytes(){ try { return (localStorage.getItem(KEY) || '').length * 2; } catch { return 0; } }
 function fmtBytes(n){ return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB'; }
 function renderPrivacyBadge(){
-  const ai = !!db.settings.apiKey;
+  const ai = !!sessionKey;
   $('#privacyBadge').classList.toggle('ai', ai);
   $('#privacyText').textContent = ai ? 'Local · Claude AI on' : 'Stays in this browser';
   $('#privacyBadge').title = ai ? 'Your library is local. Chat text is sent to Anthropic only when you analyze or Ask Claude.' : 'Your library is stored only in this browser. Nothing is uploaded.';
 }
 function renderPrivacyFacts(){
-  const ai = !!db.settings.apiKey;
+  const ai = !!sessionKey;
   const rows = [
     ['ok', 'No account, no server, no tracking', 'There is no sign-up, no database and no analytics. Nobody else can see your library.'],
     ['ok', `${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} stored on this device`, `Using ${fmtBytes(storageBytes())} of this browser's local storage.`],
@@ -1547,8 +1552,8 @@ function openSettings(tab){
   $('#s-remind').checked = db.settings.remind;
   $('#bookmarklet').href = bookmarkletHref();
   renderAppStatus();
-  $('#s-key').value = db.settings.apiKey; $('#s-model').value = db.settings.model; $('#s-auto').checked = db.settings.autoAI;
-  setStatus(db.settings.apiKey ? html`${icon('check')} Claude is on.` : 'Claude is off. Search and suggestions still work without it.');
+  $('#s-key').value = sessionKey; $('#s-model').value = db.settings.model;
+  setStatus(sessionKey ? html`${icon('check')} Claude is on.` : 'Claude is off. Search and suggestions still work without it.');
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === db.settings.theme));
   if (tab) selectTab(tab);
   closeSide();
@@ -1789,7 +1794,7 @@ document.addEventListener('keydown', e => {
     if ((e.key === 'Backspace' || e.key === 'Delete') && cur){ e.preventDefault(); removeChat(cur); return; }
   }
   if (e.key === 'Escape' && inSearch){ $('#q').value = ''; ui.q = ''; ui.aiIds = null; $('#q').blur(); render(); return; }
-  if (e.key === 'Enter' && e.shiftKey && inSearch && db.settings.apiKey){ e.preventDefault(); askClaudeSearch(); return; }
+  if (e.key === 'Enter' && e.shiftKey && inSearch && sessionKey){ e.preventDefault(); askClaudeSearch(); return; }
   const cols = gridCols();
   if (e.altKey && !inSearch && /^Arrow/.test(e.key)){ e.preventDefault(); nudge({ ArrowUp:-cols, ArrowDown:cols, ArrowLeft:-1, ArrowRight:1 }[e.key]); return; }
   const move = { ArrowDown: cols, ArrowUp: -cols, ArrowRight: inSearch ? 0 : 1, ArrowLeft: inSearch ? 0 : -1 }[e.key];
@@ -1804,7 +1809,7 @@ F.url.addEventListener('input', () => {
   if (!editing && !openTouched) openIn = p === 'claude' && !IS_MOBILE ? 'app' : 'web';
   if (p !== 'other' || !editing) setProv(p); else setOpen(openIn);
 });
-F.context.addEventListener('input', () => { updateCtxLabel(); if (db.settings.apiKey) setAiBar(); });
+F.context.addEventListener('input', () => { updateCtxLabel(); if (sessionKey) setAiBar(); });
 attachCombo($('#f-prov'), {
   extra: q => { const g = q.trim() || (provPicked === 'other' ? guessName(F.url.value) : ''); return g && !Object.values(PROVIDERS).some(p => p.name.toLowerCase() === g.toLowerCase()) ? g : ''; },
   onPick: (k, created) => { if (created) k = addCustomProvider(created, F.url.value); if (k){ setProv(k); if (!editing && !openTouched) setOpen(k === 'claude' && !IS_MOBILE ? 'app' : 'web'); } },
@@ -1840,11 +1845,10 @@ $('#delBtn').onclick = () => { if (editing){ const c = editing; $('#editDlg').cl
 /* settings events */
 $('#setTabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (b) selectTab(b.dataset.tab); };
 $('#bookmarklet').onclick = e => { e.preventDefault(); toast('Drag this button onto your bookmarks bar'); };
-$('#s-key').addEventListener('change', e => { db.settings.apiKey = e.target.value.trim(); clientCache = null; save(); render(); setStatus(db.settings.apiKey ? 'Key saved. Click Test to check it.' : 'Claude is off.'); });
+$('#s-key').addEventListener('change', e => { sessionKey = e.target.value.trim(); clientCache = null; render(); setStatus(sessionKey ? 'Key held in memory for this session. Click Test to check it.' : 'Claude is off.'); });
 $('#s-model').onchange = e => { db.settings.model = e.target.value; save(); };
-$('#s-auto').onchange = e => { db.settings.autoAI = e.target.checked; save(); };
 $('#s-test').onclick = async () => {
-  db.settings.apiKey = $('#s-key').value.trim(); clientCache = null; save(); render();
+  sessionKey = $('#s-key').value.trim(); clientCache = null; render();
   setStatus(html`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Checking…`);
   try {
     const r = await askClaudeJSON({ system:'Reply with JSON only.', user:'Return {"ok": true}.', schema:{ type:'object', additionalProperties:false, required:['ok'], properties:{ ok:{ type:'boolean' } } }, maxTokens: 1000 });
@@ -1989,7 +1993,7 @@ function renderBackupState(){
     <span>${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} in your library · ${b.changed ? 'some changes are not in a backup yet' : 'everything is backed up'}</span></div>`);
 }
 function exportBackup(){
-  const out = { app:'agent-mash', version:1, exported:new Date().toISOString(), ...db, settings: { ...db.settings, apiKey: '' } };
+  const out = { app:'agent-mash', version:1, exported:new Date().toISOString(), ...db, settings: { ...db.settings } };   // the key is not in db at all
   const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `agent-mash-backup-${isoDay(Date.now())}.json`; document.body.appendChild(a); a.click(); a.remove();
@@ -2070,13 +2074,13 @@ function handleHash(){
   }
   openEditor(null, { url, provider, title: cleanTitle(p.get('title')), context });
   localSuggest(false);
-  if (db.settings.apiKey && db.settings.autoAI && (context || !genericTitle(F.title.value))) aiFill();
 }
 window.addEventListener('hashchange', handleHash);
 
 applyTheme();
 render();
-if (!db.settings.welcomed && !location.hash.startsWith('#add=')) $('#welcomeDlg').showModal(); else maybeRemindBackup();
+if (purgedStoredKey) setTimeout(() => toast('Security update: your Claude API key was saved by an earlier version. It has been deleted from this browser. Please revoke it in the Anthropic Console and create a new one.', 'Open AI settings', () => openSettings('ai'), 15000), 600);
+else if (!db.settings.welcomed && !location.hash.startsWith('#add=')) $('#welcomeDlg').showModal(); else maybeRemindBackup();
 handleHash();
 })();
 </script>
