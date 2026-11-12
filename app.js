@@ -6,7 +6,6 @@ if (window.top !== window.self) return;   // never run inside someone else's fra
    Config
    ============================================================ */
 const KEY = 'agentmash.v1';
-const SDK_URL = './vendor/anthropic-sdk-1.3.0.mjs';   // self-hosted copy, see vendor/README.md
 const CTX_MAX = 6000;
 /* ------------------------------------------------------------
    Origin isolation. Browser storage is shared by everything on the same origin
@@ -36,6 +35,7 @@ const html = (strings, ...vals) => new SafeHTML(strings.reduce((out, str, i) => 
 const ttPolicy = window.trustedTypes?.createPolicy ? window.trustedTypes.createPolicy('agentmash', { createHTML: s => s }) : null;
 function setHTML(el, safe){
   if (!(safe instanceof SafeHTML)) throw new TypeError('setHTML only accepts SafeHTML');
+  // eslint-disable-next-line no-unsanitized/property -- the one audited HTML sink; input is SafeHTML built by html``
   el.innerHTML = ttPolicy ? ttPolicy.createHTML(safe.s) : safe.s;
   // Colors are applied through the CSSOM after a #rrggbb check, so no inline style markup is ever needed.
   el.querySelectorAll('[data-color]').forEach(n => { n.style.background = safeColor(n.dataset.color); });
@@ -805,7 +805,8 @@ async function getClient(){
   if (!sessionKey) throw new Error('Add your Claude API key in Settings → AI first.');
   if (clientCache?.key === sessionKey) return clientCache;
   let mod;
-  try { mod = await import(SDK_URL); } catch { throw new Error('Couldn’t load the Claude SDK. Check your connection.'); }
+  // Literal path: only the self-hosted SDK can ever be loaded.
+  try { mod = await import('./vendor/anthropic-sdk-1.3.0.mjs'); } catch { throw new Error('Couldn’t load the Claude SDK. Check your connection.'); }
   const Anthropic = mod.default;
   clientCache = { key: sessionKey, Anthropic, client: new Anthropic({ apiKey: sessionKey, dangerouslyAllowBrowser: true }) };
   return clientCache;
@@ -1049,6 +1050,7 @@ function bookmarkletHref(){
     + `let ok=false;try{ok=document.execCommand('copy')}catch(e){}a.remove();`
     + `if(!ok){alert('Agent Mash could not copy this chat. Add it by hand instead.');return}`
     + `window.open(S+'#capture','_blank')})()`;
+  // eslint-disable-next-line no-script-url -- this is the bookmark button the person drags to their bookmarks bar; it is never navigated to here
   return 'javascript:' + encodeURIComponent(src);
 }
 function renderAppStatus(){

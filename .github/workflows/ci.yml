@@ -1,0 +1,64 @@
+name: Security checks and deploy
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, static checks and Playwright security tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: ESLint (no-unsanitized, no-eval) and repository security checks
+        run: npm run lint
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - name: Security regression tests
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results
+          retention-days: 7
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Production only changes after every check above has passed on main.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect only the site files (no tests, tooling or docs)
+        run: |
+          mkdir _site
+          cp index.html app.js app.css theme.js manifest.webmanifest icon.svg icon-192.png icon-512.png apple-touch-icon.png _site/
+          mkdir _site/vendor && cp vendor/*.mjs _site/vendor/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

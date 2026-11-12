@@ -1,0 +1,17 @@
+{
+  "name": "agent-mash",
+  "private": true,
+  "description": "Private library for your AI chats. Static site; these dependencies are for tests and checks only.",
+  "scripts": {
+    "serve": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "lint": "eslint app.js theme.js && node scripts/check-security.mjs",
+    "test": "playwright test",
+    "check": "npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "eslint": "10.13.0",
+    "eslint-plugin-no-unsanitized": "4.1.5",
+    "globals": "17.13.0"
+  }
+}

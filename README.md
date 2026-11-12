@@ -30,16 +30,32 @@ Checked against the code of the apps installed on macOS (November 2026):
 
 App link formats can be changed in Settings → Apps.
 
-## Privacy
-- Chats are stored only in your browser (`localStorage`). Use Export/Import to move them.
-- Captured text is passed after the `#` in the page address, which browsers never send to a server.
-- The Claude API key is optional and stays in this browser. When set, chat text is sent only to `api.anthropic.com` through the official Anthropic SDK. All of your `*.github.io` pages share browser storage, so use a key with a low spend limit.
+## Privacy and security
+- Chats are stored only in your browser (`localStorage`). There is no account, server or analytics.
+- **The Claude API key is kept in memory only.** It is never saved, never in backups and never in a URL, so you enter it again after a reload. AI requests go straight from your browser to `api.anthropic.com`, and only after you click.
+- **Capture uses the clipboard.** The Save button copies the chat and Agent Mash reads it from your paste. Conversation text never goes in a web address.
+- **Everything rendered is escaped.** All HTML goes through an auto-escaping `html` template and one audited sink, enforced by Trusted Types.
+- **Links must be plain `https://` addresses.** Desktop-app links come only from a verified allowlist.
+- **Backups are untrusted input.** They're size-limited, strictly schema-validated and imported all-or-nothing.
+- **Strict Content Security Policy.** No inline code, no `eval`, no CDN; network access only to Anthropic. The SDK is self-hosted in `vendor/`.
+- **Exports aren't encrypted.** Backups and Markdown exports are plaintext, so keep them private.
+- **Shared origin:** on `*.github.io` project pages, other projects on the same host share browser storage. See [docs/HOSTING.md](docs/HOSTING.md) to move to an origin of its own.
 
 ## Run locally
 ```bash
 python3 -m http.server 8000
 ```
 Then open http://localhost:8000.
+
+## Checks and tests
+```bash
+npm ci
+npx playwright install chromium
+npm run check
+```
+- `npm run lint` runs ESLint (`no-unsanitized`, `no-eval`, `no-script-url`) and `scripts/check-security.mjs`. The script checks the CSP, that there's no inline code or styles, a single HTML sink, no CDN code and no stored API key.
+- `npm test` runs the Playwright security regression suite in `tests/security.spec.js`, which follows the pre-launch checklist.
+- GitHub Actions (`.github/workflows/ci.yml`) runs all of this on every push. **GitHub Pages only deploys from `main` after the checks pass.**
 
 ## Branches
 Each major change has its own branch, so you can go back to it:
@@ -52,5 +68,15 @@ Each major change has its own branch, so you can go back to it:
 | `feature/privacy-messaging` | Privacy-first positioning: welcome screen, privacy badge, Privacy settings tab, erase-all |
 | `feature/backup-visibility` | Back up button in the sidebar, backup status and reminders, restore by dropping a file, storage protection |
 | `feature/markdown-export` | Export to an Obsidian vault (.zip) or one Markdown file; copy or save a single chat as Markdown |
+| `security/safe-rendering` | Auto-escaping `html` templates, one audited HTML sink, `#rrggbb`-only colors |
+| `security/url-allowlist` | https-only chat links, app-link allowlist, launch guard, dedupe keeps query/fragment |
+| `security/import-validation` | Strict backup schema, size limits, prototype-key rejection, atomic import |
+| `security/api-key-memory-only` | API key in memory only, purge of stored keys, no automatic AI calls |
+| `security/capture-clipboard` | Clipboard-paste capture; conversation text never in a URL |
+| `security/save-integrity` | Full-content backup fingerprint, honest save failures, multi-tab safety, plaintext export warnings |
+| `refactor/split-assets` | CSS/JS moved to files; Anthropic SDK self-hosted |
+| `security/csp` | Strict CSP + Trusted Types, no inline styles, `_headers`, frame guard |
+| `security/origin-isolation` | Shared-origin warning, moved notice, hosting guide |
+| `test/security-regression` | Playwright security tests, ESLint security rules, repo checks, CI-gated deploy |
 
 `main` contains all of them and is what GitHub Pages publishes.
