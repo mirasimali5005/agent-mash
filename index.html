@@ -107,6 +107,13 @@ aside{border-radius:22px;padding:14px 10px 10px;display:flex;flex-direction:colu
 .privacy-badge .lbl{color:var(--text-2);font-size:12px}
 .privacy-badge svg{color:var(--ok)}
 .privacy-badge.ai svg{color:var(--warn)}
+.backup-item.stale svg,.backup-item.stale .ct{color:var(--warn)}
+.backup-item .ct{font-size:11.5px}
+.backup-card{display:flex;gap:14px;align-items:center;padding:14px;border-radius:14px;background:var(--field);border:1px solid var(--sep);margin:6px 0 4px}
+.backup-card svg{width:26px;height:26px;color:var(--text-2)}
+.backup-card.stale svg{color:var(--warn)}
+.backup-card b{display:block;font-size:13.5px}
+.backup-card span{color:var(--text-2);font-size:12px}
 .side-scroll{overflow:auto;flex:1;margin:0 -4px;padding:0 4px;scrollbar-width:none}
 .side-scroll::-webkit-scrollbar{display:none}
 .sec{font-size:11px;font-weight:600;color:var(--text-3);margin:14px 10px 4px;display:flex;justify-content:space-between;align-items:center}
@@ -315,6 +322,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     </div>
     <div class="side-foot">
       <div class="nav-item privacy-badge" id="privacyBadge" title="Where your data lives"><svg class="i"><use href="#i-lock"/></svg><span class="lbl" id="privacyText">Stays in this browser</span></div>
+      <div class="nav-item backup-item" id="backupItem" title="Download a backup of your library"><svg class="i"><use href="#i-download"/></svg><span class="lbl">Back up</span><span class="ct" id="backupState"></span></div>
       <div class="nav-item" id="openSettings"><svg class="i"><use href="#i-gear"/></svg><span class="lbl">Settings</span><span class="ai-dot" id="aiDot" title="Claude AI"></span></div>
     </div>
   </aside>
@@ -371,7 +379,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 <!-- Settings sheet -->
 <dialog id="setDlg"><div class="sheet" style="width:min(620px,calc(100vw - 24px))">
   <div class="tabs"><div class="seg" id="setTabs">
-    <button data-tab="capture" class="on">Capture</button><button data-tab="apps">Apps</button><button data-tab="ai">AI</button><button data-tab="privacy">Privacy</button><button data-tab="general">General</button>
+    <button data-tab="capture" class="on">Capture</button><button data-tab="apps">Apps</button><button data-tab="ai">AI</button><button data-tab="privacy">Privacy</button><button data-tab="backup">Backup</button><button data-tab="general">General</button>
   </div></div>
 
   <section class="tabpane on" data-pane="capture">
@@ -428,8 +436,21 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
        • <b>Opening a chat.</b> Your browser goes to that AI's website or app, just like clicking a bookmark.<br>
        • <b>Claude AI, only if you turn it on.</b> When you analyze a chat or use Ask Claude, that chat's text goes to <code>api.anthropic.com</code>, and the Claude SDK loads from <code>cdn.jsdelivr.net</code>. Without a key, neither happens.</p>
     <h4>Start over</h4>
-    <p>Remove everything Agent Mash has stored in this browser. Export a backup first if you might want it back.</p>
+    <p>Remove everything Agent Mash has stored in this browser. <a href="#" id="toBackup">Download a backup</a> first if you might want it back.</p>
     <div class="row"><button class="pill" id="eraseAll" style="color:var(--danger)"><svg class="i"><use href="#i-trash"/></svg>Erase all data in this browser…</button></div>
+  </section>
+
+  <section class="tabpane" data-pane="backup">
+    <h3>Back up your library</h3>
+    <p>Your library lives only in this browser, so a backup is the copy you keep. It's a plain JSON file you can store anywhere (iCloud Drive, Dropbox, a USB stick) and restore here or on another device. Your API key is never included.</p>
+    <div class="backup-card" id="backupCard"></div>
+    <div class="row" style="margin-top:10px"><button class="pill primary" id="exportBtn"><svg class="i"><use href="#i-download"/></svg>Download backup</button><button class="pill" id="importBtn"><svg class="i"><use href="#i-upload"/></svg>Restore from backup…</button></div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <p class="hint" style="margin-top:8px">Restoring adds chats you don't have yet. Nothing is overwritten. You can also drop a backup file onto the window.</p>
+    <h4>Storage protection</h4>
+    <p id="persistInfo">Checking…</p>
+    <h4>Reminders</h4>
+    <div class="row"><label class="switch"><input type="checkbox" id="s-remind"><span></span></label><span class="hint">Remind me when changes haven't been backed up for a week</span></div>
   </section>
 
   <section class="tabpane" data-pane="general">
@@ -437,10 +458,6 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div class="seg" id="themeSeg"><button data-v="dark">Matte black</button><button data-v="light">Graphite light</button><button data-v="auto">Match system</button></div>
     <h4>Install as a Mac app</h4>
     <p><b>Safari:</b> File → Add to Dock. <b>Chrome:</b> ⋮ → Cast, save and share → Install page as app. Agent Mash then opens in its own window with its own Dock icon.</p>
-    <h4>Your data</h4>
-    <p>You own your data. Everything stays in this browser, and a backup is a plain JSON file you can keep anywhere or move to another device. Your API key is never included.</p>
-    <div class="row"><button class="pill" id="exportBtn">Export backup…</button><button class="pill" id="importBtn">Import backup…</button></div>
-    <input type="file" id="importFile" accept="application/json" hidden>
     <h4>Keyboard</h4>
     <p><code>⌘K</code> or <code>/</code> search · <code>↑</code><code>↓</code> select · <code>↩</code> open · <code>N</code> new chat · <code>E</code> edit · <code>P</code> pin · <code>⌥</code>+arrows move a chat · <code>⌫</code> delete · drag cards to rearrange · right-click for more</p>
   </section>
@@ -456,7 +473,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div><svg class="i"><use href="#i-lock"/></svg><b>Stays on your device</b><span>No account. No server. No tracking. Your chats are stored in this browser and nowhere else.</span></div>
     <div><svg class="i"><use href="#i-star"/></svg><b>You choose what to keep</b><span>Not every chat is worth saving. Keep the ones with real value, and find them again in seconds.</span></div>
     <div><svg class="i"><use href="#i-stack"/></svg><b>Every AI you use</b><span>ChatGPT, Claude, Gemini, Kimi, DeepSeek, Grok and 28 more, all in one private place.</span></div>
-    <div><svg class="i"><use href="#i-copy"/></svg><b>Yours to take anywhere</b><span>Export a backup any time. It's plain JSON you can open years from now.</span></div>
+    <div><svg class="i"><use href="#i-copy"/></svg><b>Yours to take anywhere</b><span>Download a backup any time from the sidebar. It's plain JSON you can open years from now.</span></div>
   </div>
   <div class="sheet-foot"><button class="pill" id="welcomeCapture">Set up one-click capture</button><span class="flex"></span><button class="pill primary" id="welcomeStart">Start my library</button></div>
 </div></dialog>
@@ -464,7 +481,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 <div class="menu glass" id="menu"></div>
 <div class="menu combo glass" id="combo"></div>
 <div class="toast glass" id="toast"><span id="toastMsg"></span><button id="toastBtn"></button></div>
-<div class="drop-overlay" id="dropOv">Drop to add this chat</div>
+<div class="drop-overlay" id="dropOv"><span id="dropText">Drop to add this chat</span></div>
 
 <!-- SF-Symbols-style icon set -->
 <svg width="0" height="0" style="position:absolute">
@@ -494,6 +511,8 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.6 0v2.5"/></symbol>
   <symbol id="i-hand" viewBox="0 0 24 24"><path d="M12 3.5l7.5 3v5.2c0 4.4-3.1 7.6-7.5 8.8-4.4-1.2-7.5-4.4-7.5-8.8V6.5z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 19.5h14"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
 </svg>
@@ -581,7 +600,7 @@ function normalize(d){
     customProviders: d.customProviders || {},
     bar: d.bar || ['chatgpt','claude','gemini'],
     templates: Object.assign(defaultTemplates(), d.templates || {}),
-    settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark', sort:'manual' }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
+    settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark', sort:'manual', lastBackup:0, backupSig:'', remind:true }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
   };
 }
 function load(){
@@ -843,6 +862,7 @@ function render(){
       return `<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${esc(p.name)} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`; }).join('');
 
   renderPrivacyBadge();
+  renderBackupState();
   $('#aiDot').classList.toggle('on', !!db.settings.apiKey);
   $('#aiDot').title = db.settings.apiKey ? 'Claude AI is on' : 'Claude AI is off';
 
@@ -1037,6 +1057,7 @@ function saveEditor(){
     else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, order: Math.min(0, ...db.chats.map(c => c.order)) - 1, ...data });
   }
   if (!db.bar.includes(data.provider) && data.provider !== 'other') db.bar.push(data.provider);
+  if (db.chats.length === 1) navigator.storage?.persist?.().catch(() => {});
   save(); render();
 }
 
@@ -1320,7 +1341,8 @@ function renderPrivacyFacts(){
   $('#privacyFacts').innerHTML = rows.map(([s, t, d]) => `<div class="status-row"><span class="${s}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
 }
 function openSettings(tab){
-  renderPrivacyFacts();
+  renderPrivacyFacts(); renderBackupState(); renderPersist();
+  $('#s-remind').checked = db.settings.remind;
   $('#bookmarklet').href = bookmarkletHref();
   renderAppStatus(); renderTpl();
   $('#s-key').value = db.settings.apiKey; $('#s-model').value = db.settings.model; $('#s-auto').checked = db.settings.autoAI;
@@ -1528,13 +1550,15 @@ function nudge(delta){
 
 /* drop a link from another tab onto the window */
 let dragDepth = 0;
-const isExternalLinkDrag = e => !e.dataTransfer.types.includes('application/x-agentmash') && (e.dataTransfer.types.includes('text/uri-list') || e.dataTransfer.types.includes('text/plain'));
-window.addEventListener('dragenter', e => { if (isExternalLinkDrag(e)){ dragDepth++; $('#dropOv').classList.add('on'); } });
+const isExternalLinkDrag = e => !e.dataTransfer.types.includes('application/x-agentmash') && ['text/uri-list','text/plain','Files'].some(t => e.dataTransfer.types.includes(t));
+window.addEventListener('dragenter', e => { if (isExternalLinkDrag(e)){ dragDepth++; $('#dropText').textContent = e.dataTransfer.types.includes('Files') ? 'Drop to restore this backup' : 'Drop to add this chat'; $('#dropOv').classList.add('on'); } });
 window.addEventListener('dragleave', e => { if (isExternalLinkDrag(e) && --dragDepth <= 0){ dragDepth = 0; $('#dropOv').classList.remove('on'); } });
 window.addEventListener('dragover', e => { if (isExternalLinkDrag(e)) e.preventDefault(); });
 window.addEventListener('drop', e => {
   if (!isExternalLinkDrag(e)) return;
   e.preventDefault(); dragDepth = 0; $('#dropOv').classList.remove('on');
+  const file = e.dataTransfer.files?.[0];
+  if (file){ if (/\.json$/i.test(file.name) || file.type === 'application/json') importBackup(file); else toast('Drop an Agent Mash backup (.json) or a chat link'); return; }
   const raw = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').split('\n').find(l => /^https?:\/\//i.test(l.trim()));
   if (!raw) return toast('Drop a link to a chat');
   const url = raw.trim();
@@ -1629,6 +1653,7 @@ $('#s-bulk').onclick = bulkAnalyze;
 $('#themeSeg').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; db.settings.theme = b.dataset.v; save(); applyTheme(); $$('#themeSeg button').forEach(x => x.classList.toggle('on', x === b)); };
 $('#closeSet').onclick = () => { $('#setDlg').close(); render(); };
 $('#privacyBadge').onclick = () => openSettings('privacy');
+$('#toBackup').onclick = e => { e.preventDefault(); selectTab('backup'); };
 $('#eraseAll').onclick = () => {
   const n = db.chats.length;
   if (!confirm(`Erase all ${n} saved chat(s), folders, providers and settings from this browser?\n\nThis can't be undone. Export a backup first if you might want them back.`)) return;
@@ -1639,27 +1664,76 @@ $('#eraseAll').onclick = () => {
 $('#welcomeStart').onclick = () => { db.settings.welcomed = true; save(); $('#welcomeDlg').close(); };
 $('#welcomeCapture').onclick = () => { db.settings.welcomed = true; save(); $('#welcomeDlg').close(); openSettings('capture'); };
 $('#welcomeDlg').addEventListener('cancel', () => { db.settings.welcomed = true; save(); });
-$('#exportBtn').onclick = () => {
-  const out = { ...db, settings: { ...db.settings, apiKey: '' } };
+/* ============================================================
+   Backup
+   ============================================================ */
+function chatSig(){
+  // cheap fingerprint of everything worth backing up (ignores "last opened" times)
+  let h = 5381;
+  const str = JSON.stringify(db.chats.map(c => [c.id, c.url, c.title, c.folder, c.tags, c.notes, c.summary, c.order, c.pinned, c.provider, c.openIn, (c.context || '').length]))
+    + JSON.stringify([db.folders, db.customProviders]);
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+function backupState(){
+  const st = db.settings, n = db.chats.length;
+  const changed = n > 0 && st.backupSig !== chatSig();
+  const days = st.lastBackup ? (Date.now() - st.lastBackup) / 864e5 : Infinity;
+  const when = !st.lastBackup ? 'Never' : days < 1 ? 'Today' : days < 2 ? 'Yesterday' : days < 30 ? Math.floor(days) + 'd ago' : new Date(st.lastBackup).toLocaleDateString();
+  return { changed, days, when, stale: changed && (days > 7 || !st.lastBackup) && n >= 1 };
+}
+function renderBackupState(){
+  const b = backupState();
+  $('#backupItem').classList.toggle('stale', b.stale);
+  $('#backupState').textContent = !db.chats.length ? '' : b.changed ? (db.settings.lastBackup ? 'Changed' : 'Never') : b.when;
+  $('#backupItem').title = b.changed ? `You have changes since your last backup (${b.when.toLowerCase()}). Click to download one.` : `Backed up ${b.when.toLowerCase()}. Click to download a fresh copy.`;
+  const card = $('#backupCard'); if (!card) return;
+  card.classList.toggle('stale', b.stale);
+  card.innerHTML = `${icon(b.changed ? 'warn' : 'check')}<div><b>${!db.settings.lastBackup ? 'No backup yet' : 'Last backup: ' + b.when}</b>
+    <span>${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} in your library · ${b.changed ? 'some changes are not in a backup yet' : 'everything is backed up'}</span></div>`;
+}
+function exportBackup(){
+  const out = { app:'agent-mash', version:1, exported:new Date().toISOString(), ...db, settings: { ...db.settings, apiKey: '' } };
   const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `agent-mash-${new Date().toISOString().slice(0,10)}.json`; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
-$('#importBtn').onclick = () => $('#importFile').click();
-$('#importFile').onchange = async e => {
-  const file = e.target.files[0]; if (!file) return;
+  a.download = `agent-mash-backup-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  db.settings.lastBackup = Date.now(); db.settings.backupSig = chatSig(); save(); render(); renderBackupState();
+  toast(`Backup downloaded: ${db.chats.length} chat(s)`);
+}
+async function importBackup(file){
   try {
-    const d = normalize(JSON.parse(await file.text()));
+    const raw = JSON.parse(await file.text());
+    if (!raw || !Array.isArray(raw.chats)) throw new Error('bad');
+    const d = normalize(raw);
     const known = new Set(db.chats.map(c => normUrl(c.url)));
     const top = Math.max(0, ...db.chats.map(c => c.order));
     const fresh = d.chats.filter(c => c.url && !known.has(normUrl(c.url))).map((c, i) => ({ ...c, id: uid(), order: top + 1 + i, provider: c.provider || detect(c.url), title: c.title || c.url }));
     db.chats.push(...fresh);
     db.folders = [...new Set([...db.folders, ...d.folders])];
-    save(); render(); toast(`Imported ${fresh.length} new chat(s)`);
+    for (const [k, p] of Object.entries(d.customProviders || {})) if (!db.customProviders[k]){ db.customProviders[k] = p; registerProvider(k, { ...p, custom:true }); }
+    save(); render(); renderBackupState();
+    toast(fresh.length ? `Restored ${fresh.length} chat(s) from the backup` : 'You already have every chat in that backup');
   } catch { toast('That file isn’t an Agent Mash backup'); }
-  e.target.value = '';
-};
+}
+async function renderPersist(){
+  const el = $('#persistInfo'); if (!el) return;
+  if (!navigator.storage?.persisted){ el.textContent = 'This browser doesn’t report whether storage is protected. Keep regular backups.'; return; }
+  const ok = await navigator.storage.persisted();
+  el.innerHTML = ok ? `${icon('check')} This browser has agreed not to clear your library to free up space.`
+    : `This browser may clear site data when space runs low. <button class="pill" id="persistBtn" style="margin-left:6px">Ask to keep it</button>`;
+  $('#persistBtn')?.addEventListener('click', async () => { await navigator.storage.persist?.(); renderPersist(); });
+}
+$('#exportBtn').onclick = exportBackup;
+$('#backupItem').onclick = exportBackup;
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => { const f = e.target.files[0]; if (f) await importBackup(f); e.target.value = ''; };
+$('#s-remind').onchange = e => { db.settings.remind = e.target.checked; save(); };
+function maybeRemindBackup(){
+  const b = backupState();
+  if (db.settings.remind && b.stale && db.chats.length >= 3 && db.settings.welcomed)
+    setTimeout(() => toast(db.settings.lastBackup ? `Your last backup was ${b.when.toLowerCase()}, and your library has changed since` : 'Your library has never been backed up', 'Back up now', exportBackup, 9000), 1200);
+}
 
 /* other tabs/windows of this app stay in sync */
 window.addEventListener('storage', e => { if (e.key === KEY){ db = load(); render(); } });
@@ -1689,7 +1763,7 @@ window.addEventListener('hashchange', handleHash);
 
 applyTheme();
 render();
-if (!db.settings.welcomed && !location.hash.startsWith('#add=')) $('#welcomeDlg').showModal();
+if (!db.settings.welcomed && !location.hash.startsWith('#add=')) $('#welcomeDlg').showModal(); else maybeRemindBackup();
 handleHash();
 })();
 </script>

@@ -50,5 +50,6 @@ Each major change has its own branch, so you can go back to it:
 | `feature/provider-picker` | 34 built-in providers, type-ahead picker, custom providers |
 | `feature/drag-reorder` | Drag to reorder, drag to folders, sort menu, keyboard moves |
 | `feature/privacy-messaging` | Privacy-first positioning: welcome screen, privacy badge, Privacy settings tab, erase-all |
+| `feature/backup-visibility` | Back up button in the sidebar, backup status and reminders, restore by dropping a file, storage protection |
 
 `main` contains all of them and is what GitHub Pages publishes.
