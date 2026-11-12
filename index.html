@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Agent Mash</title>
+<meta name="referrer" content="no-referrer">
 <meta name="description" content="A private library for the AI conversations that matter. No account, no server, no tracking. Your chats stay in your browser.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -398,10 +399,9 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <h3>Opening chats in desktop apps</h3>
     <p>Here's what I found by reading the code of the apps installed on this Mac (November 2026):</p>
     <div id="appStatus"></div>
-    <h4>App link formats</h4>
-    <p><code>{url}</code> is the full link, <code>{path}</code> is the part after the domain, and <code>{id}</code> is the last part. Leave a format as <code>{url}</code> to open the website. On iPhone, iPad and Android, chats always open the website link, which the installed app takes over automatically.</p>
-    <div class="form" id="tplRows" style="grid-template-columns:110px 1fr"></div>
-    <div class="row" style="margin-top:10px"><button class="pill" id="resetTpl">Reset to defaults</button></div>
+    <h4>Why there are no custom app links</h4>
+    <p>Desktop-app links are built only from the verified list above, and only from a valid https:// chat link. Custom link formats were removed because they could be used to launch arbitrary apps or scripts. On iPhone, iPad and Android, chats open the website link, which the installed app takes over automatically.</p>
+
   </section>
 
   <section class="tabpane" data-pane="ai">
@@ -593,13 +593,36 @@ const BUILTIN_PROVIDERS = [
   ['replit',     'Replit',             '#f26207', ['replit.com'],                                         'agent'],
 ];
 const GLYPHS = { chatgpt:'⬡', claude:'✳', gemini:'✦', other:'•' };
-const APP_LINKS = { claude:'claude://claude.ai{path}' };   // verified: the Claude Mac app opens claude://claude.ai/chat/<uuid>
+/* ------------------------------------------------------------
+   URL safety. Chat links must be plain https:// web addresses. Desktop-app links
+   come only from this allowlist, which builds them from a validated https link;
+   nobody (including an imported backup) can supply their own scheme or template.
+   ------------------------------------------------------------ */
+const MAX_URL = 2048;
+const UUID_RE = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const APP_LINK_RULES = {
+  // Verified in the Claude Mac app's own link handler: claude://claude.ai/chat/<uuid> and /project/<uuid>
+  claude: u => {
+    if (u.hostname !== 'claude.ai') return null;
+    const m = u.pathname.replace(/\/+$/, '').match(new RegExp(`^/(chat|project)/(${UUID_RE})$`, 'i'));
+    return m ? `claude://claude.ai/${m[1].toLowerCase()}/${m[2].toLowerCase()}` : null;
+  },
+};
+const APP_LINK_OK = new RegExp(`^claude://claude\\.ai/(chat|project)/${UUID_RE}$`);
+function safeChatUrl(raw){
+  let str = String(raw ?? '').trim();
+  if (!str || str.length > MAX_URL || /[\s<>"`]/.test(str)) return null;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(str)) str = 'https://' + str;
+  let u; try { u = new URL(str); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password || !u.hostname.includes('.')) return null;
+  return u.href;
+}
 const SWATCHES = ['#10a37f','#d97757','#4285f4','#20b8cd','#ff7000','#1d9bf0','#e8b10a','#0f766e','#ef4444','#64748b','#14b8a6','#f97316','#0ea5e9','#84cc16'];
 const PROVIDERS = {};
 function registerProvider(key, p){
   const name = String(p.name || key).slice(0, 40);
   PROVIDERS[key] = { name, color:safeColor(p.color), hosts:(Array.isArray(p.hosts) ? p.hosts : []).map(String).slice(0, 10), aliases:String(p.aliases || '').slice(0, 200), custom:!!p.custom,
-    letter: GLYPHS[key] || (name.match(/[A-Za-z0-9]/)?.[0] || '•').toUpperCase(), app: APP_LINKS[key] || '{url}' };
+    letter: GLYPHS[key] || (name.match(/[A-Za-z0-9]/)?.[0] || '•').toUpperCase() };
 }
 BUILTIN_PROVIDERS.forEach(([k, name, color, hosts, aliases]) => registerProvider(k, { name, color, hosts, aliases }));
 registerProvider('other', { name:'Other', color:'#8e8e93' });
@@ -618,7 +641,6 @@ const ui = { view:'all', folder:null, tag:null, provider:null, q:'', sel:0, aiId
 let editing = null, openIn = 'web', provPicked = 'chatgpt', openTouched = false;
 Object.entries(db.customProviders).forEach(([k, p]) => registerProvider(k, { ...p, custom:true }));
 
-function defaultTemplates(){ return { ...APP_LINKS }; }
 function normalize(d){
   d = d || {};
   return {
@@ -626,7 +648,6 @@ function normalize(d){
     folders: d.folders || [],
     customProviders: d.customProviders || {},
     bar: d.bar || ['chatgpt','claude','gemini'],
-    templates: Object.assign(defaultTemplates(), d.templates || {}),
     settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark', sort:'manual', lastBackup:0, backupSig:'', remind:true }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
   };
 }
@@ -682,9 +703,15 @@ function guessName(url){
   const parts = h.split('.'); const core = parts.length > 2 && /^(chat|app|www|agent|web)$/.test(parts[0]) ? parts[1] : parts[parts.length - 2] || parts[0];
   return core ? core[0].toUpperCase() + core.slice(1) : '';
 }
+/* Duplicate detection key: keeps the path, query and fragment (they can hold the conversation id),
+   ignores host case, "www.", a trailing slash and common tracking parameters. */
 function normUrl(u){
-  try { const x = new URL(u); return (x.hostname.replace(/^www\./,'') + x.pathname.replace(/\/+$/,'')).toLowerCase(); }
-  catch { return String(u).trim().toLowerCase(); }
+  try {
+    const x = new URL(u);
+    [...x.searchParams.keys()].forEach(k => { if (/^utm_|^(fbclid|gclid|ref|ref_src)$/i.test(k)) x.searchParams.delete(k); });
+    x.searchParams.sort();
+    return x.hostname.replace(/^www\./, '').toLowerCase() + x.pathname.replace(/\/+$/, '') + x.search + x.hash;
+  } catch { return String(u).trim(); }
 }
 function cleanTitle(t){
   return String(t || '').replace(/\s*[-|–—]\s*(Claude|ChatGPT|Gemini|Google Gemini|Google AI Studio)\s*$/i,'')
@@ -695,14 +722,10 @@ function genericTitle(t){ return !t || /^(claude|chatgpt|gemini|google gemini|ne
 /* What actually happens when a chat is opened in "app" mode. */
 function appLink(c){
   if (IS_MOBILE) return c.url;                       // iOS/Android: universal links open the installed app
-  const tpl = db.templates[c.provider] || P(c.provider).app || '{url}';
-  if (tpl.trim() === '{url}') return c.url;
-  let u; try { u = new URL(c.url); } catch { return c.url; }
-  const path = u.pathname.replace(/\/+$/,'');
-  const id = path.split('/').filter(Boolean).pop() || '';
-  // The Claude app only routes /chat/<uuid> and /project/<uuid>; anything else would land on Recents.
-  if (c.provider === 'claude' && tpl.startsWith('claude://') && !/^\/(chat|project)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) return c.url;
-  return tpl.replaceAll('{url}', c.url).replaceAll('{path}', path).replaceAll('{id}', id);
+  const rule = APP_LINK_RULES[c.provider];
+  const web = safeChatUrl(c.url);
+  if (!rule || !web) return c.url;
+  return rule(new URL(web)) || c.url;
 }
 const targetUrl = c => c.openIn === 'app' ? appLink(c) : c.url;
 const opensNative = c => !/^https?:/i.test(targetUrl(c));
@@ -944,17 +967,26 @@ function card(c, i, tokens){
 /* ============================================================
    Opening chats
    ============================================================ */
+/* The only place a link is handed to the browser or the OS. */
 function launch(url){
-  if (/^https?:/i.test(url)) return !!window.open(url, '_blank', 'noopener');
-  // Custom app scheme (e.g. claude://): hand to the OS without leaving this page.
-  const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
-  return true;
+  const web = safeChatUrl(url);
+  if (web && web === url){
+    const w = window.open(web, '_blank');
+    if (w){ try { w.opener = null; } catch {} }      // the chat site can't reach back into this page
+    return !!w;
+  }
+  if (APP_LINK_OK.test(url)){
+    const a = document.createElement('a'); a.href = url; a.rel = 'noopener noreferrer';
+    document.body.appendChild(a); a.click(); a.remove();
+    return true;
+  }
+  toast('Blocked a link that isn’t a plain https:// address');
+  return false;
 }
 function openChat(c, mode){
   const url = mode === 'web' ? c.url : mode === 'app' ? appLink(c) : targetUrl(c);
   c.lastOpened = Date.now(); save(); render();
-  launch(url);
-  if (!/^https?:/i.test(url)){
+  if (launch(url) && APP_LINK_OK.test(url)){
     const name = P(c.provider).name;
     toast(`Opening in the ${name} app…`, 'Open website instead', () => launch(c.url), 6000);
   }
@@ -967,8 +999,8 @@ function openAll(){
   list.forEach((c, i) => {
     const url = targetUrl(c);
     c.lastOpened = Date.now();
-    if (/^https?:/i.test(url)) { if (!window.open(url, '_blank')) blocked++; }
-    else { apps++; setTimeout(() => launch(url), i * 350); }   // stagger app hand-offs so none are dropped
+    if (APP_LINK_OK.test(url)){ apps++; setTimeout(() => launch(url), i * 350); }   // stagger app hand-offs so none are dropped
+    else if (!launch(url)) blocked++;
   });
   save(); render();
   if (blocked) toast(`Your browser blocked ${blocked} tab(s). Allow pop-ups for this site and try again.`);
@@ -1072,8 +1104,12 @@ async function aiFill(){
   }
 }
 function saveEditor(){
-  let url = F.url.value.trim();
-  if (url && !/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) url = 'https://' + url;
+  const url = safeChatUrl(F.url.value);
+  if (!url){
+    F.url.setCustomValidity('Use a normal https:// link to the chat.');
+    F.url.reportValidity();
+    return false;
+  }
   const context = F.context.value.trim().slice(0, CTX_MAX);
   const data = {
     url, title: F.title.value.trim() || url, provider: provPicked, folder: cleanFolder(F.folder.value), tags: parseTags(F.tags.value),
@@ -1353,11 +1389,6 @@ function renderAppStatus(){
 function statusRows(rows){
   return html`${rows.map(([s, t, d]) => html`<div class="status-row"><span class="${s === 'ok' ? 'ok' : 'no'}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`)}`;
 }
-function renderTpl(){
-  const keys = [...new Set(['chatgpt','claude','gemini', ...db.bar, ...db.chats.map(c => c.provider)])].filter(k => k !== 'other' && PROVIDERS[k]);
-  setHTML($('#tplRows'), html`${keys.map(k =>
-    html`<label>${P(k).name}</label><input class="field" data-tpl="${k}" value="${db.templates[k] || P(k).app}" spellcheck="false">`)}`);
-}
 function storageBytes(){ try { return (localStorage.getItem(KEY) || '').length * 2; } catch { return 0; } }
 function fmtBytes(n){ return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB'; }
 function renderPrivacyBadge(){
@@ -1380,7 +1411,7 @@ function openSettings(tab){
   renderPrivacyFacts(); renderBackupState(); renderPersist();
   $('#s-remind').checked = db.settings.remind;
   $('#bookmarklet').href = bookmarkletHref();
-  renderAppStatus(); renderTpl();
+  renderAppStatus();
   $('#s-key').value = db.settings.apiKey; $('#s-model').value = db.settings.model; $('#s-auto').checked = db.settings.autoAI;
   setStatus(db.settings.apiKey ? html`${icon('check')} Claude is on.` : 'Claude is off. Search and suggestions still work without it.');
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === db.settings.theme));
@@ -1597,7 +1628,8 @@ window.addEventListener('drop', e => {
   if (file){ if (/\.json$/i.test(file.name) || file.type === 'application/json') importBackup(file); else toast('Drop an Agent Mash backup (.json) or a chat link'); return; }
   const raw = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '').split('\n').find(l => /^https?:\/\//i.test(l.trim()));
   if (!raw) return toast('Drop a link to a chat');
-  const url = raw.trim();
+  const url = safeChatUrl(raw);
+  if (!url) return toast('Only https:// chat links can be added');
   const existing = db.chats.find(c => normUrl(c.url) === normUrl(url));
   openEditor(existing || null, existing ? null : { url, provider: detect(url) });
 });
@@ -1665,15 +1697,14 @@ $('#provSeg').oncontextmenu = e => {
 };
 $('#openPick').onclick = e => { const b = e.target.closest('[data-v]'); if (b){ openTouched = true; setOpen(b.dataset.v); } };
 $('#aiRun').onclick = () => { if ($('#aiRun').dataset.mode === 'setup'){ $('#editDlg').close(); openSettings('ai'); } else aiFill(); };
-$('#editForm').addEventListener('submit', e => { if (e.submitter?.value === 'ok') saveEditor(); });
+$('#editForm').addEventListener('submit', e => { if (e.submitter?.value === 'ok' && saveEditor() === false) e.preventDefault(); });
+F.url.addEventListener('input', () => F.url.setCustomValidity(''));
 $('#cancelEdit').onclick = () => $('#editDlg').close();
 $('#delBtn').onclick = () => { if (editing){ const c = editing; $('#editDlg').close(); removeChat(c); } };
 
 /* settings events */
 $('#setTabs').onclick = e => { const b = e.target.closest('[data-tab]'); if (b) selectTab(b.dataset.tab); };
 $('#bookmarklet').onclick = e => { e.preventDefault(); toast('Drag this button onto your bookmarks bar'); };
-$('#tplRows').oninput = e => { const k = e.target.dataset.tpl; if (k){ db.templates[k] = e.target.value.trim() || '{url}'; save(); } };
-$('#resetTpl').onclick = () => { db.templates = defaultTemplates(); save(); renderTpl(); };
 $('#s-key').addEventListener('change', e => { db.settings.apiKey = e.target.value.trim(); clientCache = null; save(); render(); setStatus(db.settings.apiKey ? 'Key saved. Click Test to check it.' : 'Claude is off.'); });
 $('#s-model').onchange = e => { db.settings.model = e.target.value; save(); };
 $('#s-auto').onchange = e => { db.settings.autoAI = e.target.checked; save(); };
@@ -1724,7 +1755,7 @@ function chatToMarkdown(c, { frontmatter = true, level = 1 } = {}){
       'source: agent-mash',
       '---', '');
   }
-  out.push(`${h} ${c.title}`, '', `**${p.name}** · [Open chat](${c.url})${c.folder ? ' · ' + c.folder : ''}${!frontmatter && (c.tags || []).length ? ' · ' + c.tags.map(t => '#' + tagSafe(t)).join(' ') : ''}`, '');
+  out.push(`${h} ${c.title}`, '', `**${p.name}** · [Open chat](<${String(c.url).replace(/[<>\s]/g, encodeURIComponent)}>)${c.folder ? ' · ' + c.folder : ''}${!frontmatter && (c.tags || []).length ? ' · ' + c.tags.map(t => '#' + tagSafe(t)).join(' ') : ''}`, '');
   if (c.summary) out.push(`${h}# Summary`, '', c.summary, '');
   if (c.notes) out.push(`${h}# My notes`, '', c.notes, '');
   if (c.context) out.push(`${h}# Conversation excerpt`, '', quoteBlock(c.context), '');
@@ -1875,7 +1906,7 @@ function handleHash(){
   if (!location.hash.startsWith('#add=')) return;
   const p = new URLSearchParams(location.hash.slice(1));
   history.replaceState(null, '', location.pathname + location.search);
-  const url = (p.get('add') || '').trim(); if (!url) return;
+  const url = safeChatUrl(p.get('add')); if (!url) return toast('That link was blocked. Only https:// chat links can be saved.');
   const provider = detect(url);
   const context = (p.get('ctx') || '').slice(0, CTX_MAX);
   const existing = db.chats.find(c => normUrl(c.url) === normUrl(url));
