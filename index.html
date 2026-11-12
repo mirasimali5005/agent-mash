@@ -160,10 +160,15 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;gap:10px}
 .card{border-radius:18px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:7px;cursor:default;transition:transform .15s ease, box-shadow .15s, background .15s;outline:none;min-width:0}
 .card:hover{background:var(--glass-hover);transform:translateY(-1px)}
 .card.sel{box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1.5px var(--sel), var(--shadow)}
-.card.dragging{opacity:.5}
+.card{user-select:none;-webkit-user-select:none;-webkit-user-drag:none;touch-action:manipulation}
+.card.placeholder{opacity:.28;outline:1.5px dashed var(--sel);outline-offset:-2px;box-shadow:none}
+.drag-ghost{position:fixed!important;left:0;top:0;z-index:80;margin:0;pointer-events:none;transition:none!important;
+  box-shadow:inset 0 1px 0 var(--hi), 0 0 0 1px var(--sel), var(--shadow-lg)!important;background:var(--glass-strong)!important;will-change:transform}
+body.is-dragging, body.is-dragging *{cursor:grabbing!important}
+body.is-dragging .card:hover{transform:none;background:var(--glass)}
 .card-h{display:flex;align-items:flex-start;gap:10px}
 .av{width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 2px 6px -2px rgba(0,0,0,.3)}
-.card-t{flex:1;min-width:0}
+.card-t{flex:1;min-width:0;padding-right:54px}
 .card-t b{display:block;font-size:13.5px;font-weight:620;line-height:1.3;word-break:break-word}
 .card-t small{color:var(--text-2);font-size:11.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
 .card .sum{color:var(--text-2);font-size:12.5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -302,6 +307,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div class="toolbar glass sheen">
       <button class="icon-btn" id="toggleSide" title="Toggle sidebar"><svg class="i"><use href="#i-sidebar"/></svg></button>
       <div class="tb-title"><b id="viewTitle">All Chats</b><span id="viewSub"></span></div>
+      <button class="icon-btn" id="sortBtn" title="Sort"><svg class="i"><use href="#i-sort"/></svg></button>
       <div class="search">
         <svg class="i"><use href="#i-search"/></svg>
         <input id="q" placeholder="Search chats, topics, notes…" autocomplete="off" spellcheck="false">
@@ -405,7 +411,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div class="row"><button class="pill" id="exportBtn">Export backup…</button><button class="pill" id="importBtn">Import backup…</button></div>
     <input type="file" id="importFile" accept="application/json" hidden>
     <h4>Keyboard</h4>
-    <p><code>⌘K</code> or <code>/</code> search · <code>↑</code><code>↓</code> select · <code>↩</code> open · <code>N</code> new chat · <code>E</code> edit · <code>P</code> pin · <code>⌫</code> delete · right-click for more</p>
+    <p><code>⌘K</code> or <code>/</code> search · <code>↑</code><code>↓</code> select · <code>↩</code> open · <code>N</code> new chat · <code>E</code> edit · <code>P</code> pin · <code>⌥</code>+arrows move a chat · <code>⌫</code> delete · drag cards to rearrange · right-click for more</p>
   </section>
 
   <div class="sheet-foot"><span class="flex"></span><button class="pill primary" id="closeSet">Done</button></div>
@@ -438,6 +444,10 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13"/></symbol>
   <symbol id="i-stack" viewBox="0 0 24 24"><path d="M12 3.5l8.5 4.4L12 12.3 3.5 7.9z"/><path d="M3.5 12L12 16.4 20.5 12M3.5 16.1L12 20.5l8.5-4.4"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M9 5.5h9.5V15M18.5 5.5L6 18"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M4 7h11M4 12h8M4 17h5M18 6v13M15.3 16.3L18 19l2.7-2.7"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
 </svg>
@@ -520,12 +530,12 @@ function defaultTemplates(){ return { ...APP_LINKS }; }
 function normalize(d){
   d = d || {};
   return {
-    chats: (d.chats || []).map(c => ({ tags:[], keywords:[], folder:'', notes:'', summary:'', context:'', openIn:'web', pinned:false, lastOpened:0, created:Date.now(), ...c })),
+    chats: (d.chats || []).map((c, i) => ({ tags:[], keywords:[], folder:'', notes:'', summary:'', context:'', openIn:'web', pinned:false, lastOpened:0, created:Date.now(), order:i, ...c })),
     folders: d.folders || [],
     customProviders: d.customProviders || {},
     bar: d.bar || ['chatgpt','claude','gemini'],
     templates: Object.assign(defaultTemplates(), d.templates || {}),
-    settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark' }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
+    settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark', sort:'manual' }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
   };
 }
 function load(){
@@ -701,11 +711,38 @@ function visible(){
   }
   const rec = c => c.lastOpened || c.created || 0;
   let list = base.map(c => ({ c, s: score(c, tokens) })).filter(x => x.s > 0);
+  const mode = db.settings.sort;
   list.sort((a,b) => tokens.length ? (b.s - a.s) || (rec(b.c) - rec(a.c))
     : ui.view === 'recent' ? b.c.lastOpened - a.c.lastOpened
-    : (b.c.pinned - a.c.pinned) || (rec(b.c) - rec(a.c)));
+    : mode === 'manual' ? a.c.order - b.c.order
+    : (b.c.pinned - a.c.pinned) || (mode === 'name' ? a.c.title.localeCompare(b.c.title, undefined, { sensitivity:'base' })
+      : mode === 'added' ? b.c.created - a.c.created : rec(b.c) - rec(a.c)));
   if (ui.view === 'recent' && !tokens.length) list = list.slice(0, 40);
   return { list: list.map(x => x.c), tokens };
+}
+const SORTS = { manual:'Your order', recent:'Recently opened', added:'Date added', name:'Name' };
+function canReorder(){ return !ui.q.trim() && !ui.aiIds && ui.view !== 'recent' && db.settings.sort === 'manual'; }
+function whyNoReorder(){
+  if (ui.q.trim() || ui.aiIds) return 'Clear the search to reorder chats';
+  if (ui.view === 'recent') return 'Recent is always sorted by when you opened chats';
+  if (db.settings.sort !== 'manual') return `Sorted by ${SORTS[db.settings.sort].toLowerCase()}. Switch to your own order to rearrange.`;
+  return '';
+}
+/* Put the visible chats in a new sequence, keeping hidden chats where they were. */
+function applyVisibleOrder(ids){
+  const byId = new Map(db.chats.map(c => [c.id, c]));
+  const all = [...db.chats].sort((a,b) => a.order - b.order);
+  const vis = new Set(ids);
+  const slots = all.map((c, i) => vis.has(c.id) ? i : -1).filter(i => i >= 0);
+  slots.forEach((pos, k) => { all[pos] = byId.get(ids[k]); });
+  all.forEach((c, i) => { c.order = i; });
+  save();
+}
+function moveToEdge(c, top){
+  const orders = db.chats.map(x => x.order);
+  c.order = top ? Math.min(...orders) - 1 : Math.max(...orders) + 1;
+  if (db.settings.sort !== 'manual'){ db.settings.sort = 'manual'; toast('Switched to your own order'); }
+  save(); render();
 }
 function hl(text, tokens){
   let out = esc(text);
@@ -766,7 +803,7 @@ function render(){
   const title = ui.view === 'folder' ? ui.folder.split('/').pop() : ui.view === 'tag' ? '#' + ui.tag
     : { all:'All Chats', recent:'Recent', pinned:'Pinned', unfiled:'Unfiled' }[ui.view];
   $('#viewTitle').textContent = title;
-  $('#viewSub').textContent = ai ? `${list.length} found by Claude` : `${list.length} chat${list.length === 1 ? '' : 's'}${ui.provider ? ' · ' + P(ui.provider).name : ''}`;
+  $('#viewSub').textContent = ai ? `${list.length} found by Claude` : `${list.length} chat${list.length === 1 ? '' : 's'}${ui.provider ? ' · ' + P(ui.provider).name : ''}${ui.view === 'recent' ? '' : ' · ' + SORTS[db.settings.sort]}`;
   ui.sel = Math.min(ui.sel, Math.max(0, list.length - 1));
 
   let html = '';
@@ -793,7 +830,7 @@ function card(c, i, tokens){
     : `<span class="chip mode">${icon('globe')}Web</span>`;
   const snip = snippet(c, tokens);
   const body = c.summary || c.notes;
-  return `<div class="card glass sheen ${i === ui.sel ? 'sel' : ''}" data-id="${c.id}" draggable="true" tabindex="-1">
+  return `<div class="card glass sheen ${i === ui.sel ? 'sel' : ''}" data-id="${c.id}" tabindex="-1">
     <div class="card-actions">
       <button data-act="pin" class="${c.pinned ? 'on' : ''}" title="${c.pinned ? 'Unpin' : 'Pin'}">${icon(c.pinned ? 'starfill' : 'star')}</button>
       <button data-act="edit" title="Edit">${icon('pencil')}</button>
@@ -949,7 +986,7 @@ function saveEditor(){
   else {
     const dup = db.chats.find(c => normUrl(c.url) === normUrl(url));
     if (dup) { Object.assign(dup, data); toast('You’d already saved this chat, so it was updated'); }
-    else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, ...data });
+    else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, order: Math.min(0, ...db.chats.map(c => c.order)) - 1, ...data });
   }
   if (!db.bar.includes(data.provider) && data.provider !== 'other') db.bar.push(data.provider);
   save(); render();
@@ -1099,6 +1136,8 @@ function chatMenu(c, x, y){
     '-',
     { icon:'pencil', label:'Edit…', run: () => openEditor(c) },
     { icon: c.pinned ? 'starfill' : 'star', label: c.pinned ? 'Unpin' : 'Pin', run: () => { c.pinned = !c.pinned; save(); render(); } },
+    { icon:'up', label:'Move to Top', run: () => moveToEdge(c, true) },
+    { icon:'down', label:'Move to Bottom', run: () => moveToEdge(c, false) },
     { icon:'folder', label:'Move to Folder…', run: () => { const f = prompt('Move to folder (blank = Unfiled):', c.folder); if (f !== null){ c.folder = cleanFolder(f); save(); render(); } } },
     db.settings.apiKey ? { icon:'sparkles', label:'Analyze with Claude', run: () => analyzeOne(c) } : null,
     { icon:'copy', label:'Copy Link', run: () => copy(c.url) },
@@ -1268,8 +1307,17 @@ function closeSide(){ $('#side').classList.remove('open'); }
 $('#openSettings').onclick = () => openSettings();
 $('#addBtn').onclick = () => openEditor();
 $('#openAll').onclick = openAll;
+$('#sortBtn').onclick = e => {
+  e.stopPropagation();
+  const r = e.currentTarget.getBoundingClientRect();
+  showMenu(r.left, r.bottom + 6, Object.entries(SORTS).map(([k, label]) => ({
+    icon: db.settings.sort === k ? 'check' : 'none', label: label + (k === 'manual' ? ' (drag to arrange)' : ''),
+    run: () => { db.settings.sort = k; save(); render(); },
+  })));
+};
 
 $('#grid').onclick = e => {
+  if (drag.justDragged) return;
   if (e.target.closest('[data-open-settings]')){ e.preventDefault(); openSettings('capture'); return; }
   if (e.target.closest('[data-ai-ask]')) return askClaudeSearch();
   if (e.target.closest('[data-ai-clear]')){ ui.aiIds = null; render(); return; }
@@ -1292,36 +1340,125 @@ window.addEventListener('resize', hideCombo);
 document.addEventListener('scroll', hideMenu, true);
 window.addEventListener('blur', hideMenu);
 
-/* drag a card onto a folder / Pinned / Unfiled */
-$('#grid').addEventListener('dragstart', e => {
-  const cardEl = e.target.closest('.card'); if (!cardEl) return;
-  const c = db.chats.find(x => x.id === cardEl.dataset.id);
-  e.dataTransfer.setData('application/x-agentmash', cardEl.dataset.id);
-  e.dataTransfer.setData('text/uri-list', c.url);
-  e.dataTransfer.effectAllowed = 'copyMove';
-  cardEl.classList.add('dragging');
+/* ============================================================
+   Drag & drop (pointer based: works with mouse, trackpad and touch)
+   - drag a card between other cards to set your own order
+   - drag a card onto a folder, Pinned or Unfiled in the sidebar
+   ============================================================ */
+const drag = { pending:null, active:null, justDragged:false };
+const gridCols = () => Math.max(1, getComputedStyle($('#grid')).gridTemplateColumns.split(' ').length);
+$('#grid').addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target.closest('button, a, input')) return;
+  const el = e.target.closest('.card'); if (!el) return;
+  drag.pending = { id: el.dataset.id, el, x: e.clientX, y: e.clientY, type: e.pointerType };
+  if (e.pointerType !== 'mouse') drag.pending.timer = setTimeout(() => drag.pending && startDrag(drag.pending.x, drag.pending.y), 320);   // long-press on touch
 });
-$('#grid').addEventListener('dragend', e => e.target.closest?.('.card')?.classList.remove('dragging'));
-$('#side').addEventListener('dragover', e => {
-  const t = e.target.closest('[data-drop]');
-  if (!t || !e.dataTransfer.types.includes('application/x-agentmash')) return;
-  e.preventDefault(); e.stopPropagation();
-  $$('.nav-item.drop').forEach(x => x !== t && x.classList.remove('drop')); t.classList.add('drop');
-});
-$('#side').addEventListener('dragleave', e => e.target.closest?.('[data-drop]')?.classList.remove('drop'));
-$('#side').addEventListener('drop', e => {
-  const t = e.target.closest('[data-drop]'); const id = e.dataTransfer.getData('application/x-agentmash');
-  $$('.nav-item.drop').forEach(x => x.classList.remove('drop'));
-  if (!t || !id) return;
-  e.preventDefault(); e.stopPropagation();
-  const c = db.chats.find(x => x.id === id); if (!c) return;
-  const kind = t.dataset.drop;
-  if (kind === 'folder'){ c.folder = t.dataset.folder; toast(`Moved to ${c.folder}`); }
-  else if (kind === 'unfiled'){ c.folder = ''; toast('Moved to Unfiled'); }
-  else if (kind === 'pinned'){ c.pinned = true; toast('Pinned'); }
-  else return;
-  save(); render();
-});
+window.addEventListener('pointermove', e => {
+  const p = drag.pending;
+  if (p && !drag.active){
+    const dist = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+    if (p.type === 'mouse' && dist > 5) startDrag(e.clientX, e.clientY);
+    else if (p.type !== 'mouse' && dist > 10){ clearTimeout(p.timer); drag.pending = null; }   // that was a scroll
+  }
+  if (drag.active){ e.preventDefault(); moveDrag(e.clientX, e.clientY); }
+}, { passive:false });
+document.addEventListener('touchmove', e => { if (drag.active) e.preventDefault(); }, { passive:false });
+window.addEventListener('pointerup', e => { clearTimeout(drag.pending?.timer); drag.pending = null; if (drag.active) endDrag(); });
+window.addEventListener('pointercancel', () => { clearTimeout(drag.pending?.timer); drag.pending = null; if (drag.active) endDrag(true); });
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && drag.active){ e.stopPropagation(); endDrag(true); } }, true);
+
+function startDrag(x, y){
+  const p = drag.pending; drag.pending = null;
+  const r = p.el.getBoundingClientRect();
+  const ghost = p.el.cloneNode(true);
+  ghost.classList.add('drag-ghost'); ghost.classList.remove('sel');
+  ghost.style.width = r.width + 'px'; ghost.style.height = r.height + 'px';
+  document.body.appendChild(ghost);
+  p.el.classList.add('placeholder');
+  drag.active = { id: p.id, el: p.el, ghost, dx: x - r.left, dy: y - r.top, x, y, reorder: canReorder(), moved: false, startIds: $$('#grid .card').map(n => n.dataset.id) };
+  document.body.classList.add('is-dragging');
+  hideMenu(); navigator.vibrate?.(8);
+  moveDrag(x, y);
+  autoScroll();
+}
+function moveDrag(x, y){
+  const d = drag.active; d.x = x; d.y = y;
+  d.ghost.style.transform = `translate(${x - d.dx}px, ${y - d.dy}px) rotate(1.2deg) scale(1.02)`;
+  const under = document.elementFromPoint(x, y);
+  const target = under?.closest('[data-drop]');
+  $$('.nav-item.drop').forEach(n => n !== target && n.classList.remove('drop'));
+  d.target = target || null;
+  if (target){ target.classList.add('drop'); return; }
+  if (!d.reorder) return;
+  const over = under?.closest('#grid .card');
+  if (!over || over === d.el) return;
+  const r = over.getBoundingClientRect();
+  const after = gridCols() > 1 ? x > r.left + r.width / 2 : y > r.top + r.height / 2;
+  if (after ? over.nextElementSibling === d.el : over.previousElementSibling === d.el) return;
+  // FLIP: measure, move the placeholder, then animate every card from its old spot
+  const cards = $$('#grid .card');
+  const before = new Map(cards.map(c => [c, c.getBoundingClientRect()]));
+  over.parentNode.insertBefore(d.el, after ? over.nextSibling : over);
+  d.moved = true;
+  for (const c of cards){
+    const a = before.get(c), b = c.getBoundingClientRect();
+    const dx = a.left - b.left, dy = a.top - b.top;
+    if (!dx && !dy) continue;
+    c.style.transition = 'none'; c.style.transform = `translate(${dx}px, ${dy}px)`;
+    requestAnimationFrame(() => { c.style.transition = 'transform .24s cubic-bezier(.2,.8,.2,1)'; c.style.transform = ''; });
+  }
+}
+function autoScroll(){
+  const d = drag.active; if (!d) return;
+  const box = $('#content'), r = box.getBoundingClientRect(), edge = 56;
+  const v = d.y < r.top + edge ? -Math.ceil((r.top + edge - d.y) / 4) : d.y > r.bottom - edge ? Math.ceil((d.y - r.bottom + edge) / 4) : 0;
+  if (v){ box.scrollTop += v; moveDrag(d.x, d.y); }
+  requestAnimationFrame(autoScroll);
+}
+function endDrag(cancel){
+  const d = drag.active; drag.active = null;
+  document.body.classList.remove('is-dragging');
+  $$('.nav-item.drop').forEach(n => n.classList.remove('drop'));
+  d.ghost.remove(); d.el.classList.remove('placeholder');
+  drag.justDragged = true; setTimeout(() => drag.justDragged = false, 60);
+  const c = db.chats.find(x => x.id === d.id); if (!c) return;
+  if (cancel){ render(); return; }
+  if (d.target){
+    const kind = d.target.dataset.drop;
+    if (kind === 'folder'){ c.folder = d.target.dataset.folder; toast(`Moved “${c.title}” to ${c.folder}`); }
+    else if (kind === 'unfiled'){ c.folder = ''; toast('Moved to Unfiled'); }
+    else if (kind === 'pinned'){ c.pinned = true; toast('Pinned'); }
+    else if (kind === 'all'){ /* dropping on All Chats does nothing */ }
+    save(); render(); return;
+  }
+  if (d.reorder && d.moved){
+    const ids = $$('#grid .card').map(n => n.dataset.id);
+    if (ids.join() !== d.startIds.join()){
+      const prev = new Map(db.chats.map(x => [x.id, x.order]));
+      applyVisibleOrder(ids);
+      ui.sel = ids.indexOf(d.id);
+      render();
+      toast('Order saved', 'Undo', () => { db.chats.forEach(x => x.order = prev.get(x.id)); save(); render(); });
+      return;
+    }
+  }
+  if (!d.reorder){
+    const msg = whyNoReorder();
+    if (db.settings.sort !== 'manual' && !ui.q.trim() && ui.view !== 'recent')
+      toast(msg, 'Use my order', () => { db.settings.sort = 'manual'; save(); render(); }, 5000);
+    else if (msg) toast(msg);
+  }
+  render();
+}
+/* keyboard: ⌥ + arrows moves the selected chat */
+function nudge(delta){
+  const { list } = visible(); const c = list[ui.sel]; if (!c) return;
+  if (!canReorder()) return toast(whyNoReorder());
+  const to = Math.max(0, Math.min(list.length - 1, ui.sel + delta)); if (to === ui.sel) return;
+  const ids = list.map(x => x.id); ids.splice(ui.sel, 1); ids.splice(to, 0, c.id);
+  applyVisibleOrder(ids); ui.sel = to; render(); $('.card.sel')?.scrollIntoView({ block:'nearest' });
+}
+
 /* drop a link from another tab onto the window */
 let dragDepth = 0;
 const isExternalLinkDrag = e => !e.dataTransfer.types.includes('application/x-agentmash') && (e.dataTransfer.types.includes('text/uri-list') || e.dataTransfer.types.includes('text/plain'));
@@ -1359,7 +1496,8 @@ document.addEventListener('keydown', e => {
   }
   if (e.key === 'Escape' && inSearch){ $('#q').value = ''; ui.q = ''; ui.aiIds = null; $('#q').blur(); render(); return; }
   if (e.key === 'Enter' && e.shiftKey && inSearch && db.settings.apiKey){ e.preventDefault(); askClaudeSearch(); return; }
-  const cols = Math.max(1, getComputedStyle($('#grid')).gridTemplateColumns.split(' ').length);
+  const cols = gridCols();
+  if (e.altKey && !inSearch && /^Arrow/.test(e.key)){ e.preventDefault(); nudge({ ArrowUp:-cols, ArrowDown:cols, ArrowLeft:-1, ArrowRight:1 }[e.key]); return; }
   const move = { ArrowDown: cols, ArrowUp: -cols, ArrowRight: inSearch ? 0 : 1, ArrowLeft: inSearch ? 0 : -1 }[e.key];
   if (move){ e.preventDefault(); ui.sel = Math.max(0, Math.min(list.length - 1, ui.sel + move)); render(); $('.card.sel')?.scrollIntoView({ block:'nearest' }); return; }
   if (e.key === 'Enter' && cur){ e.preventDefault(); openChat(cur); }
@@ -1436,7 +1574,8 @@ $('#importFile').onchange = async e => {
   try {
     const d = normalize(JSON.parse(await file.text()));
     const known = new Set(db.chats.map(c => normUrl(c.url)));
-    const fresh = d.chats.filter(c => c.url && !known.has(normUrl(c.url))).map(c => ({ ...c, id: uid(), provider: c.provider || detect(c.url), title: c.title || c.url }));
+    const top = Math.max(0, ...db.chats.map(c => c.order));
+    const fresh = d.chats.filter(c => c.url && !known.has(normUrl(c.url))).map((c, i) => ({ ...c, id: uid(), order: top + 1 + i, provider: c.provider || detect(c.url), title: c.title || c.url }));
     db.chats.push(...fresh);
     db.folders = [...new Set([...db.folders, ...d.folders])];
     save(); render(); toast(`Imported ${fresh.length} new chat(s)`);
