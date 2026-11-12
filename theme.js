@@ -1,1 +1,3 @@
+/* Refuse to render inside a frame: GitHub Pages can't send frame-ancestors, so this is the fallback. */
+if (window.top !== window.self) { document.documentElement.style.display = 'none'; }
 /* apply saved theme before first paint; dark is the default */try{var t=(JSON.parse(localStorage.getItem("agentmash.v1")||"{}").settings||{}).theme;document.documentElement.dataset.theme=(t==="light"||t==="auto")?(t==="auto"?"":"light"):"dark";if(!document.documentElement.dataset.theme)delete document.documentElement.dataset.theme}catch(e){document.documentElement.dataset.theme="dark"}

@@ -1,5 +1,6 @@
 (() => {
 'use strict';
+if (window.top !== window.self) return;   // never run inside someone else's frame (clickjacking)
 
 /* ============================================================
    Config
@@ -23,9 +24,13 @@ function htmlVal(v){
   return esc(v);
 }
 const html = (strings, ...vals) => new SafeHTML(strings.reduce((out, str, i) => out + str + (i < vals.length ? htmlVal(vals[i]) : ''), ''));
+/* Trusted Types (enforced by the CSP in Chromium browsers): setHTML is the only code allowed to create HTML. */
+const ttPolicy = window.trustedTypes?.createPolicy ? window.trustedTypes.createPolicy('agentmash', { createHTML: s => s }) : null;
 function setHTML(el, safe){
   if (!(safe instanceof SafeHTML)) throw new TypeError('setHTML only accepts SafeHTML');
-  el.innerHTML = safe.s;
+  el.innerHTML = ttPolicy ? ttPolicy.createHTML(safe.s) : safe.s;
+  // Colors are applied through the CSSOM after a #rrggbb check, so no inline style markup is ever needed.
+  el.querySelectorAll('[data-color]').forEach(n => { n.style.background = safeColor(n.dataset.color); });
 }
 const ICON_NAME = /^[a-z]+$/;
 const icon = (n, cls = 'i') => ICON_NAME.test(n) ? html`<svg class="${cls}"><use href="#i-${n}"/></svg>` : html``;
@@ -519,7 +524,7 @@ function snippet(c, tokens){
    ============================================================ */
 function navItem({ data = {}, title = '', indent = 0, ic, label, count, on, extra = '' }){
   const attrs = Object.entries(data).map(([k, v]) => html` data-${k.replace(/[^a-z-]/g, '')}="${v}"`);
-  return html`<div class="nav-item ${on ? 'on' : ''}"${attrs}${title ? html` title="${title}"` : ''}${indent ? html` style="padding-left:${10 + indent * 16}px"` : ''}>${ic}<span class="lbl">${label}</span>${extra}<span class="ct">${count ?? ''}</span></div>`;
+  return html`<div class="nav-item ${on ? 'on' : ''}"${attrs}${title ? html` title="${title}"` : ''}${indent ? html` data-indent="${Math.min(6, indent)}"` : ''}>${ic}<span class="lbl">${label}</span>${extra}<span class="ct">${count ?? ''}</span></div>`;
 }
 function render(){
   const n = { all: db.chats.length, recent: db.chats.filter(c => c.lastOpened).length, pinned: db.chats.filter(c => c.pinned).length, unfiled: db.chats.filter(c => !c.folder).length };
@@ -531,7 +536,7 @@ function render(){
       data:{ folder:f, drop:'folder' }, title:f, indent: Math.min(6, f.split('/').length - 1), ic:icon('folder'),
       label:f.split('/').pop(), count: db.chats.filter(c => inFolder(c, f)).length, on: ui.view === 'folder' && ui.folder === f,
       extra:html`<button class="x" data-delfolder="${f}" title="Remove folder">${icon('trash')}</button>` }))}`
-    : html`<p class="hint" style="padding:2px 10px">Drag chats here, or type a folder like <code>Work/Startup</code> when adding one.</p>`);
+    : html`<p class="hint pad-x">Drag chats here, or type a folder like <code>Work/Startup</code> when adding one.</p>`);
   setHTML($('#folderList'), html`${folders.map(f => html`<option value="${f}">`)}`);
 
   const tagCounts = {};
@@ -545,7 +550,7 @@ function render(){
   if (db.chats.some(c => c.provider === 'other') && !barKeys.includes('other')) barKeys.push('other');
   setHTML($('#provSeg'), html`<button data-prov="" class="${!ui.provider ? 'on' : ''}">All</button>${
     barKeys.map(k => { const p = P(k), n = db.chats.filter(c => c.provider === k).length;
-      return html`<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${p.name} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" style="background:${safeColor(p.color)}"></span>${p.name}</button>`; })}`);
+      return html`<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${p.name} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" data-color="${safeColor(p.color)}"></span>${p.name}</button>`; })}`);
 
   renderPrivacyBadge();
   renderBackupState();
@@ -563,12 +568,12 @@ function render(){
   if (ui.q.trim().length >= 3 && sessionKey){
     parts.push(ai
       ? html`<div class="ai-row glass">${icon('sparkles')}<span class="t">Claude’s matches for “${ui.q}”</span><button class="pill" data-ai-clear>Show keyword results</button></div>`
-      : html`<div class="ai-row glass">${ui.aiBusy ? html`<span class="spin"></span>` : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? html`disabled` : ''}>Ask Claude <kbd style="opacity:.6">⇧↩</kbd></button></div>`);
+      : html`<div class="ai-row glass">${ui.aiBusy ? html`<span class="spin"></span>` : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? html`disabled` : ''}>Ask Claude <kbd class="kbd-dim">⇧↩</kbd></button></div>`);
   }
   if (!db.chats.length){
     parts.push(html`<div class="empty glass"><img class="big" src="icon.svg" alt=""><h2>Save the conversations that matter</h2>
       <p>Click <b>Add</b> and paste a link from any AI chat,<br>or set up the one-click button in <a href="#" data-open-settings>Settings → Capture</a>.</p>
-      <p class="hint" style="margin-top:14px">${icon('lock')} No account. No server. Everything stays in this browser.</p></div>`);
+      <p class="hint mt-14">${icon('lock')} No account. No server. Everything stays in this browser.</p></div>`);
   } else if (!list.length){
     parts.push(html`<div class="empty glass"><h2>No matches</h2><p>Try fewer words${ui.provider ? ', or switch the provider filter back to All' : ''}.</p></div>`);
   } else {
@@ -590,12 +595,12 @@ function card(c, i, tokens){
       <button data-act="edit" title="Edit">${icon('pencil')}</button>
     </div>
     <div class="card-h">
-      <div class="av" style="background:${safeColor(p.color)}">${p.letter}</div>
+      <div class="av" data-color="${safeColor(p.color)}">${p.letter}</div>
       <div class="card-t"><b>${hl(c.title, tokens)}</b>
         <small><span>${p.name}</span>·<span>${ago(c.lastOpened)}</span></small></div>
     </div>
     ${body ? html`<div class="sum">${hl(body, tokens)}</div>` : ''}
-    ${snip ? html`<div class="sum" style="font-style:italic">“${hl(snip, tokens)}”</div>` : ''}
+    ${snip ? html`<div class="sum italic">“${hl(snip, tokens)}”</div>` : ''}
     <div class="chips">${mode}${c.folder ? html`<span class="chip">${hl(c.folder, tokens)}</span>` : ''}${(c.tags||[]).map(t => html`<span class="chip">#${hl(t, tokens)}</span>`)}</div>
   </div>`;
 }
@@ -736,7 +741,7 @@ async function aiFill(){
     F._aiKeywords = r.keywords || [];
     setAiBar('done', html`${icon('check')} Filled in by Claude. Change anything you like.`);
   } catch (e){
-    setAiBar('error', html`<span style="color:var(--danger)">${e.message}</span>`);
+    setAiBar('error', html`<span class="danger-text">${e.message}</span>`);
   }
 }
 function saveEditor(){
@@ -891,7 +896,7 @@ async function bulkAnalyze(){
   if (!confirm(`Ask Claude to analyze ${todo.length} chat(s)? This uses your API credits.`)) return;
   let done = 0;
   for (const c of todo){
-    setStatus(html`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Analyzing ${done + 1} of ${todo.length}: ${c.title}`);
+    setStatus(html`<span class="spin inline"></span> Analyzing ${done + 1} of ${todo.length}: ${c.title}`);
     try {
       const r = await analyzeChat(c);
       c.summary = r.summary; c.keywords = r.keywords;
@@ -899,7 +904,7 @@ async function bulkAnalyze(){
       if (!c.folder && r.folder) c.folder = r.folder;
       if (genericTitle(c.title) || c.title === c.url) c.title = r.title;
       done++; save(); render();
-    } catch (e){ setStatus(html`<span style="color:var(--danger)">${e.message}</span>`); return; }
+    } catch (e){ setStatus(html`<span class="danger-text">${e.message}</span>`); return; }
   }
   setStatus(html`${icon('check')} Analyzed ${done} chat(s).`);
 }
@@ -976,7 +981,7 @@ function attachCombo(input, opts){
     if (!combo.items.length) setHTML(el, html`<div class="combo-empty">No match. Keep typing to add it.</div>`);
     else setHTML(el, html`${combo.items.map((it, i) => it.create
       ? html`<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}">${icon('plus')}<span>Add “${it.create}”</span><small>new provider</small></button>`
-      : html`<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}"><span class="dot" style="background:${safeColor(it.p.color)}"></span><span>${it.p.name}</span><small>${it.p.hosts[0] || ''}</small></button>`)}`);
+      : html`<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}"><span class="dot" data-color="${safeColor(it.p.color)}"></span><span>${it.p.name}</span><small>${it.p.hosts[0] || ''}</small></button>`)}`);
     const r = input.getBoundingClientRect();
     el.style.left = Math.min(r.left, innerWidth - 270) + 'px';
     el.style.top = (r.bottom + 6) + 'px';
@@ -1369,11 +1374,11 @@ $('#s-key').addEventListener('change', e => { sessionKey = e.target.value.trim()
 $('#s-model').onchange = e => { db.settings.model = e.target.value; save(); };
 $('#s-test').onclick = async () => {
   sessionKey = $('#s-key').value.trim(); clientCache = null; render();
-  setStatus(html`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Checking…`);
+  setStatus(html`<span class="spin inline"></span> Checking…`);
   try {
     const r = await askClaudeJSON({ system:'Reply with JSON only.', user:'Return {"ok": true}.', schema:{ type:'object', additionalProperties:false, required:['ok'], properties:{ ok:{ type:'boolean' } } }, maxTokens: 1000 });
     setStatus(r.ok ? html`${icon('check')} Connected. Claude is ready.` : 'Connected, but got an unexpected reply.');
-  } catch (e){ setStatus(html`<span style="color:var(--danger)">${e.message}</span>`); }
+  } catch (e){ setStatus(html`<span class="danger-text">${e.message}</span>`); }
 };
 $('#s-bulk').onclick = bulkAnalyze;
 $('#themeSeg').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; db.settings.theme = b.dataset.v; save(); applyTheme(); $$('#themeSeg button').forEach(x => x.classList.toggle('on', x === b)); };
@@ -1567,7 +1572,7 @@ async function renderPersist(){
   if (!navigator.storage?.persisted){ el.textContent = 'This browser doesn’t report whether storage is protected. Keep regular backups.'; return; }
   const ok = await navigator.storage.persisted();
   setHTML(el, ok ? html`${icon('check')} This browser has agreed not to clear your library to free up space.`
-    : html`This browser may clear site data when space runs low. <button class="pill" id="persistBtn" style="margin-left:6px">Ask to keep it</button>`);
+    : html`This browser may clear site data when space runs low. <button class="pill ml-6" id="persistBtn">Ask to keep it</button>`);
   $('#persistBtn')?.addEventListener('click', async () => { await navigator.storage.persist?.(); renderPersist(); });
 }
 $('#exportBtn').onclick = exportBackup;

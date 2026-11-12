@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.anthropic.com; manifest-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'; require-trusted-types-for 'script'; trusted-types agentmash; upgrade-insecure-requests">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Agent Mash</title>
 <meta name="referrer" content="no-referrer">
@@ -47,7 +48,7 @@
         <input id="q" placeholder="Search chats, topics, notes…" autocomplete="off" spellcheck="false">
         <kbd>⌘K</kbd>
       </div>
-      <div class="seg prov"><div id="provSeg" style="display:contents"></div><input id="provAdd" class="seg-input" placeholder="+ Provider" autocomplete="off" spellcheck="false" title="Type to add a provider, e.g. ki → Kimi"></div>
+      <div class="seg prov"><div class="d-contents" id="provSeg"></div><input id="provAdd" class="seg-input" placeholder="+ Provider" autocomplete="off" spellcheck="false" title="Type to add a provider, e.g. ki → Kimi"></div>
       <span class="flex hide-mobile"></span>
       <button class="pill hide-mobile" id="openAll" title="Open every chat in this view"><svg class="i"><use href="#i-stack"/></svg>Open all</button>
       <button class="pill primary" id="addBtn" title="Add chat (N)"><svg class="i"><use href="#i-plus"/></svg>Add</button>
@@ -61,7 +62,7 @@
   <h3 id="editTitle">Add Chat</h3>
   <p class="sub" id="editSub">Paste a link from any AI chat.</p>
   <div class="form">
-    <div class="ai-bar" id="aiBar" hidden><span id="aiBarIcon" style="display:flex"><svg class="i"><use href="#i-sparkles"/></svg></span><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
+    <div class="ai-bar" id="aiBar" hidden><span class="d-flex" id="aiBarIcon"><svg class="i"><use href="#i-sparkles"/></svg></span><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
     <label for="f-url">Link</label><input class="field" id="f-url" name="url" required maxlength="2048" placeholder="https://claude.ai/chat/…">
     <label for="f-title">Title</label><input class="field" id="f-title" name="title" required maxlength="300" placeholder="What is this chat about?">
     <label for="f-prov">Provider</label><div class="prov-field"><span class="dot" id="provDot"></span><input class="field" id="f-prov" autocomplete="off" spellcheck="false" placeholder="Type a provider, e.g. ki → Kimi"></div>
@@ -71,16 +72,16 @@
     <label for="f-notes" class="top">My notes</label><textarea class="field" id="f-notes" name="notes" maxlength="5000" rows="2" placeholder="Anything you'd search for later"></textarea>
     <label>Open in</label>
     <div><div class="seg" id="openPick"><button type="button" data-v="web"><svg class="i"><use href="#i-globe"/></svg>Website</button><button type="button" data-v="app"><svg class="i"><use href="#i-app"/></svg>Desktop app</button></div>
-      <p class="hint" id="openHint" style="margin-top:6px"></p></div>
+      <p class="hint mt-6" id="openHint"></p></div>
     <span></span>
     <details class="ctx" id="ctxBox"><summary id="ctxSum">Conversation text (optional)</summary>
       <textarea class="field" id="f-context" name="context" maxlength="6000" rows="5" placeholder="Paste part of the conversation here. It's searchable, and Claude uses it to understand the chat. The bookmark button fills this in automatically."></textarea>
     </details>
   </div>
   <datalist id="folderList"></datalist>
-  <p class="hint" id="saveError" role="alert" style="color:var(--danger);margin-top:10px" hidden></p>
+  <p class="hint danger-text mt-10" id="saveError" role="alert" hidden></p>
   <div class="sheet-foot">
-    <button type="button" class="pill" id="delBtn" style="color:var(--danger)"><svg class="i"><use href="#i-trash"/></svg>Delete</button>
+    <button type="button" class="pill danger-text" id="delBtn"><svg class="i"><use href="#i-trash"/></svg>Delete</button>
     <span class="flex"></span>
     <button type="button" class="pill" id="cancelEdit">Cancel</button>
     <button class="pill primary" value="ok">Save</button>
@@ -88,7 +89,7 @@
 </form></dialog>
 
 <!-- Settings sheet -->
-<dialog id="setDlg"><div class="sheet" style="width:min(620px,calc(100vw - 24px))">
+<dialog id="setDlg"><div class="sheet sheet-wide">
   <div class="tabs"><div class="seg" id="setTabs">
     <button data-tab="capture" class="on">Capture</button><button data-tab="apps">Apps</button><button data-tab="ai">AI</button><button data-tab="privacy">Privacy</button><button data-tab="backup">Backup</button><button data-tab="general">General</button>
   </div></div>
@@ -116,12 +117,12 @@
   </section>
 
   <section class="tabpane" data-pane="ai">
-    <h3>Understand chats automatically <span class="chip" style="vertical-align:middle">optional</span></h3>
+    <h3>Understand chats automatically <span class="chip va-mid">optional</span></h3>
     <p>With a Claude API key, Agent Mash can read a chat's saved conversation text, <b>when you click “Fill in with Claude”</b>, and write a <b>title, summary, tags, search keywords and a folder</b> for you. Nothing is sent automatically. In search, <b>Ask Claude</b> also finds chats by meaning, not just exact words.</p>
     <p>Without a key, it still picks keywords and suggests a folder on its own, right in your browser.</p>
-    <div class="form" style="grid-template-columns:110px 1fr">
+    <div class="form form-110">
       <label for="s-key">API key</label>
-      <div class="row"><input class="field" id="s-key" type="password" placeholder="sk-ant-…" style="flex:1" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore><button class="pill" id="s-test">Test</button></div>
+      <div class="row"><input class="field flex" id="s-key" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore><button class="pill" id="s-test">Test</button></div>
       <span></span><p class="hint"><b>Kept in memory only.</b> The key is never saved to this browser, never put in backups and never in a link, so you'll enter it again after you reload or close Agent Mash. It's sent only to <code>api.anthropic.com</code>. Calling the API from a browser is less safe than calling it from a server, so use a key with a low spend limit that you can revoke. Get one at <code>console.anthropic.com</code>.</p>
       <label for="s-model">Model</label>
       <select class="field" id="s-model">
@@ -131,7 +132,7 @@
       </select>
       <span></span><p class="hint" id="s-status"></p>
     </div>
-    <div class="row" style="margin-top:12px"><button class="pill" id="s-bulk"><svg class="i"><use href="#i-sparkles"/></svg>Analyze chats without a summary</button></div>
+    <div class="row mt-12"><button class="pill" id="s-bulk"><svg class="i"><use href="#i-sparkles"/></svg>Analyze chats without a summary</button></div>
   </section>
 
   <section class="tabpane" data-pane="privacy">
@@ -146,21 +147,21 @@
        • <b>Claude AI, only if you turn it on.</b> When you analyze a chat or use Ask Claude, that chat's text goes to <code>api.anthropic.com</code>, and the Claude SDK loads from <code>cdn.jsdelivr.net</code>. Without a key, neither happens.</p>
     <h4>Start over</h4>
     <p>Remove everything Agent Mash has stored in this browser. <a href="#" id="toBackup">Download a backup</a> first if you might want it back.</p>
-    <div class="row"><button class="pill" id="eraseAll" style="color:var(--danger)"><svg class="i"><use href="#i-trash"/></svg>Erase all data in this browser…</button></div>
+    <div class="row"><button class="pill danger-text" id="eraseAll"><svg class="i"><use href="#i-trash"/></svg>Erase all data in this browser…</button></div>
   </section>
 
   <section class="tabpane" data-pane="backup">
     <h3>Back up your library</h3>
     <p>Your library lives only in this browser, so a backup is the copy you keep. It's a plain JSON file you can store anywhere (iCloud Drive, Dropbox, a USB stick) and restore here or on another device. Your API key is never included.</p>
     <div class="backup-card" id="backupCard"></div>
-    <div class="row" style="margin-top:10px"><button class="pill primary" id="exportBtn"><svg class="i"><use href="#i-download"/></svg>Download backup</button><button class="pill" id="importBtn"><svg class="i"><use href="#i-upload"/></svg>Restore from backup…</button></div>
+    <div class="row mt-10"><button class="pill primary" id="exportBtn"><svg class="i"><use href="#i-download"/></svg>Download backup</button><button class="pill" id="importBtn"><svg class="i"><use href="#i-upload"/></svg>Restore from backup…</button></div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="hint" style="margin-top:8px">Restoring adds chats you don't have yet. Nothing is overwritten. You can also drop a backup file onto the window.</p>
-    <p class="hint" style="margin-top:4px"><b>Backups and exports are not encrypted.</b> They contain your saved conversation text in plain form, so keep them somewhere private and don't share them.</p>
+    <p class="hint mt-8">Restoring adds chats you don't have yet. Nothing is overwritten. You can also drop a backup file onto the window.</p>
+    <p class="hint mt-4"><b>Backups and exports are not encrypted.</b> They contain your saved conversation text in plain form, so keep them somewhere private and don't share them.</p>
     <h4>Export for notes apps</h4>
     <p>Take your library into Obsidian, Logseq, Apple Notes or any Markdown editor. Each chat becomes a note with its link, summary, tags, your notes and the captured conversation.</p>
     <div class="row"><button class="pill" id="mdVault"><svg class="i"><use href="#i-folder"/></svg>Obsidian vault (.zip)</button><button class="pill" id="mdSingle"><svg class="i"><use href="#i-download"/></svg>One Markdown file</button></div>
-    <p class="hint" style="margin-top:6px">The vault keeps your folders, uses YAML front matter Obsidian understands, and includes an index note that links every chat. Markdown is for reading. To restore your library, use the JSON backup above.</p>
+    <p class="hint mt-6">The vault keeps your folders, uses YAML front matter Obsidian understands, and includes an index note that links every chat. Markdown is for reading. To restore your library, use the JSON backup above.</p>
     <h4>Storage protection</h4>
     <p id="persistInfo">Checking…</p>
     <h4>Reminders</h4>
@@ -179,7 +180,7 @@
   <div class="sheet-foot"><span class="flex"></span><button class="pill primary" id="closeSet">Done</button></div>
 </div></dialog>
 
-<dialog id="captureDlg"><div class="sheet" style="width:min(460px,calc(100vw - 24px));text-align:center">
+<dialog id="captureDlg"><div class="sheet sheet-narrow center">
   <h3>Paste your captured chat</h3>
   <p class="sub">The Save button copied the chat to your clipboard. Press <code>⌘V</code> (or <code>Ctrl+V</code>) to bring it in.</p>
   <div class="paste-zone" id="pasteZone" tabindex="0">⌘V</div>
@@ -206,7 +207,7 @@
 <div class="drop-overlay" id="dropOv"><span id="dropText">Drop to add this chat</span></div>
 
 <!-- SF-Symbols-style icon set -->
-<svg width="0" height="0" style="position:absolute">
+<svg class="svg-defs" width="0" height="0">
   <symbol id="i-all" viewBox="0 0 24 24"><rect x="4" y="7.5" width="12.5" height="12.5" rx="2.6"/><path d="M8 4.2h9.3A2.6 2.6 0 0 1 20 6.8V16"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.8l2.5 5.2 5.7.8-4.1 4 1 5.6L12 16.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/></symbol>
