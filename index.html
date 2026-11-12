@@ -239,6 +239,20 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 .menu button.danger{color:var(--danger)}
 .menu button.danger:hover{background:var(--danger);color:#fff}
 .menu hr{border:0;border-top:1px solid var(--sep);margin:4px 6px}
+.combo{max-height:300px;overflow:auto;z-index:70}
+.combo button{gap:8px}
+.combo button span:not(.dot){flex:1}
+.combo button small{color:var(--text-3);font-size:11px}
+.combo button.on{background:var(--accent);color:var(--accent-text)}
+.combo button.on small{color:inherit;opacity:.6}
+.combo button:hover:not(.on){background:var(--field);color:var(--text)}
+.combo-empty{padding:8px 10px;color:var(--text-2)}
+.prov-field{position:relative}
+.prov-field .dot{position:absolute;left:10px;top:11px}
+.prov-field .field{padding-left:26px}
+.seg-input{border:0;background:transparent;height:26px;width:104px;flex:none;padding:0 9px;border-radius:8px;outline:none;color:var(--text-2);transition:background .2s}
+.seg-input::placeholder{color:var(--text-3)}
+.seg-input:focus{background:var(--glass-strong);color:var(--text);box-shadow:0 0 0 .5px var(--edge)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;z-index:60;padding:9px 10px 9px 16px;border-radius:999px;display:flex;align-items:center;gap:10px;transition:.25s cubic-bezier(.2,.9,.3,1.2);pointer-events:none;max-width:calc(100vw - 30px)}
 .toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 .toast button{border:0;background:var(--accent);color:var(--accent-text);border-radius:999px;padding:4px 11px;font-weight:600}
@@ -293,7 +307,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
         <input id="q" placeholder="Search chats, topics, notes…" autocomplete="off" spellcheck="false">
         <kbd>⌘K</kbd>
       </div>
-      <div class="seg prov" id="provSeg"></div>
+      <div class="seg prov"><div id="provSeg" style="display:contents"></div><input id="provAdd" class="seg-input" placeholder="+ Provider" autocomplete="off" spellcheck="false" title="Type to add a provider, e.g. ki → Kimi"></div>
       <span class="flex hide-mobile"></span>
       <button class="pill hide-mobile" id="openAll" title="Open every chat in this view"><svg class="i"><use href="#i-stack"/></svg>Open all</button>
       <button class="pill primary" id="addBtn" title="Add chat (N)"><svg class="i"><use href="#i-plus"/></svg>Add</button>
@@ -305,12 +319,12 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 <!-- Add / edit sheet -->
 <dialog id="editDlg"><form class="sheet" method="dialog" id="editForm" autocomplete="off">
   <h3 id="editTitle">Add Chat</h3>
-  <p class="sub" id="editSub">Paste a link from ChatGPT, Claude or Gemini.</p>
+  <p class="sub" id="editSub">Paste a link from any AI chat.</p>
   <div class="form">
     <div class="ai-bar" id="aiBar" hidden><svg class="i"><use href="#i-sparkles"/></svg><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
     <label for="f-url">Link</label><input class="field" id="f-url" name="url" required placeholder="https://claude.ai/chat/…">
     <label for="f-title">Title</label><input class="field" id="f-title" name="title" required placeholder="What is this chat about?">
-    <label>Provider</label><div class="seg" id="provPick"></div>
+    <label for="f-prov">Provider</label><div class="prov-field"><span class="dot" id="provDot"></span><input class="field" id="f-prov" autocomplete="off" spellcheck="false" placeholder="Type a provider, e.g. ki → Kimi"></div>
     <label for="f-folder">Folder</label><input class="field" id="f-folder" name="folder" list="folderList" placeholder="e.g. Work/Startup">
     <label for="f-tags">Tags</label><input class="field" id="f-tags" name="tags" placeholder="research, pricing, essay">
     <label for="f-summary" class="top">Summary</label><textarea class="field" id="f-summary" name="summary" rows="2" placeholder="What was this chat about? (Claude can write this)"></textarea>
@@ -398,6 +412,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 </div></dialog>
 
 <div class="menu glass" id="menu"></div>
+<div class="menu combo glass" id="combo"></div>
 <div class="toast glass" id="toast"><span id="toastMsg"></span><button id="toastBtn"></button></div>
 <div class="drop-overlay" id="dropOv">Drop to add this chat</div>
 
@@ -437,12 +452,54 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 const KEY = 'agentmash.v1';
 const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm';
 const CTX_MAX = 6000;
-const PROVIDERS = {
-  chatgpt: { name:'ChatGPT', letter:'⬡', color:'var(--chatgpt)', hosts:['chatgpt.com','chat.openai.com'], app:'{url}' },
-  claude:  { name:'Claude',  letter:'✳', color:'var(--claude)',  hosts:['claude.ai'],                       app:'claude://claude.ai{path}' },
-  gemini:  { name:'Gemini',  letter:'✦', color:'var(--gemini)',  hosts:['gemini.google.com','aistudio.google.com'], app:'{url}' },
-  other:   { name:'Other',   letter:'•', color:'var(--other)',   hosts:[], app:'{url}' },
-};
+/* Built-in AI providers (local list, no network). hosts may include a path prefix, e.g. "x.com/i/grok". */
+const BUILTIN_PROVIDERS = [
+  ['chatgpt',    'ChatGPT',            '#10a37f', ['chatgpt.com','chat.openai.com'],                     'openai gpt'],
+  ['claude',     'Claude',             '#d97757', ['claude.ai'],                                          'anthropic'],
+  ['gemini',     'Gemini',             '#4285f4', ['gemini.google.com'],                                  'google bard'],
+  ['aistudio',   'Google AI Studio',   '#1a73e8', ['aistudio.google.com'],                                'google gemini studio'],
+  ['notebooklm', 'NotebookLM',         '#34a853', ['notebooklm.google.com'],                              'google notebook'],
+  ['perplexity', 'Perplexity',         '#20b8cd', ['perplexity.ai'],                                      'pplx'],
+  ['grok',       'Grok',               '#9ca3af', ['grok.com','x.com/i/grok'],                            'xai x twitter'],
+  ['deepseek',   'DeepSeek',           '#4d6bfe', ['chat.deepseek.com','deepseek.com'],                   'r1'],
+  ['kimi',       'Kimi',               '#1f6feb', ['kimi.com','kimi.ai','kimi.moonshot.cn'],              'moonshot'],
+  ['mistral',    'Le Chat (Mistral)',  '#ff7000', ['chat.mistral.ai'],                                    'mistral lechat'],
+  ['copilot',    'Microsoft Copilot',  '#0ea5e9', ['copilot.microsoft.com','m365.cloud.microsoft'],       'microsoft bing'],
+  ['metaai',     'Meta AI',            '#0866ff', ['meta.ai'],                                            'llama facebook instagram'],
+  ['qwen',       'Qwen',               '#0891b2', ['chat.qwen.ai','qwen.ai','tongyi.aliyun.com'],         'alibaba tongyi'],
+  ['zai',        'Z.ai (GLM)',         '#6b7280', ['chat.z.ai','z.ai','chatglm.cn'],                      'glm zhipu chatglm'],
+  ['minimax',    'MiniMax',            '#e11d48', ['chat.minimax.io','agent.minimax.io','minimax.io'],    'hailuo'],
+  ['manus',      'Manus',              '#737373', ['manus.im'],                                           'agent'],
+  ['doubao',     'Doubao',             '#2563eb', ['doubao.com'],                                         'bytedance'],
+  ['yuanbao',    'Yuanbao',            '#22c55e', ['yuanbao.tencent.com'],                                'tencent hunyuan'],
+  ['ernie',      'ERNIE Bot',          '#3b82f6', ['yiyan.baidu.com'],                                    'baidu wenxin'],
+  ['poe',        'Poe',                '#0f766e', ['poe.com'],                                            'quora'],
+  ['huggingchat','HuggingChat',        '#e8b10a', ['huggingface.co/chat'],                                'hugging face'],
+  ['duckai',     'Duck.ai',            '#de5833', ['duck.ai'],                                            'duckduckgo'],
+  ['you',        'You.com',            '#2563eb', ['you.com'],                                            ''],
+  ['phind',      'Phind',              '#f97316', ['phind.com'],                                          ''],
+  ['genspark',   'Genspark',           '#14b8a6', ['genspark.ai'],                                        ''],
+  ['pi',         'Pi',                 '#15803d', ['pi.ai'],                                              'inflection'],
+  ['characterai','Character.AI',       '#64748b', ['character.ai'],                                       'cai'],
+  ['lmarena',    'LMArena',            '#ef4444', ['lmarena.ai'],                                         'chatbot arena'],
+  ['t3chat',     'T3 Chat',            '#f43f5e', ['t3.chat'],                                            ''],
+  ['openrouter', 'OpenRouter',         '#64748b', ['openrouter.ai'],                                      ''],
+  ['v0',         'v0',                 '#a3a3a3', ['v0.dev','v0.app'],                                    'vercel'],
+  ['lovable',    'Lovable',            '#fb7185', ['lovable.dev'],                                        ''],
+  ['bolt',       'Bolt',               '#1d9bf0', ['bolt.new'],                                           'stackblitz'],
+  ['replit',     'Replit',             '#f26207', ['replit.com'],                                         'agent'],
+];
+const GLYPHS = { chatgpt:'⬡', claude:'✳', gemini:'✦', other:'•' };
+const APP_LINKS = { claude:'claude://claude.ai{path}' };   // verified: the Claude Mac app opens claude://claude.ai/chat/<uuid>
+const SWATCHES = ['#10a37f','#d97757','#4285f4','#20b8cd','#ff7000','#1d9bf0','#e8b10a','#0f766e','#ef4444','#64748b','#14b8a6','#f97316','#0ea5e9','#84cc16'];
+const PROVIDERS = {};
+function registerProvider(key, p){
+  PROVIDERS[key] = { name:p.name, color:p.color, hosts:p.hosts || [], aliases:p.aliases || '', custom:!!p.custom,
+    letter: GLYPHS[key] || (p.name.match(/[A-Za-z0-9]/)?.[0] || '•').toUpperCase(), app: APP_LINKS[key] || '{url}' };
+}
+BUILTIN_PROVIDERS.forEach(([k, name, color, hosts, aliases]) => registerProvider(k, { name, color, hosts, aliases }));
+registerProvider('other', { name:'Other', color:'#8e8e93' });
+const P = k => PROVIDERS[k] || PROVIDERS.other;
 const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 const $ = s => document.querySelector(s);
@@ -457,13 +514,16 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 let db = load();
 const ui = { view:'all', folder:null, tag:null, provider:null, q:'', sel:0, aiIds:null, aiBusy:false };
 let editing = null, openIn = 'web', provPicked = 'chatgpt', openTouched = false;
+Object.entries(db.customProviders).forEach(([k, p]) => registerProvider(k, { ...p, custom:true }));
 
-function defaultTemplates(){ return Object.fromEntries(Object.entries(PROVIDERS).map(([k,p]) => [k, p.app])); }
+function defaultTemplates(){ return { ...APP_LINKS }; }
 function normalize(d){
   d = d || {};
   return {
     chats: (d.chats || []).map(c => ({ tags:[], keywords:[], folder:'', notes:'', summary:'', context:'', openIn:'web', pinned:false, lastOpened:0, created:Date.now(), ...c })),
     folders: d.folders || [],
+    customProviders: d.customProviders || {},
+    bar: d.bar || ['chatgpt','claude','gemini'],
     templates: Object.assign(defaultTemplates(), d.templates || {}),
     settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark' }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
   };
@@ -481,11 +541,44 @@ function save(){
    Helpers
    ============================================================ */
 function detect(url){
-  try {
-    const h = new URL(url).hostname.replace(/^www\./,'');
-    for (const [k,p] of Object.entries(PROVIDERS)) if (p.hosts.some(x => h === x || h.endsWith('.' + x))) return k;
-  } catch {}
-  return 'other';
+  let u; try { u = new URL(url); } catch { return 'other'; }
+  const h = u.hostname.replace(/^www\./,'').toLowerCase(), full = h + u.pathname.toLowerCase();
+  let best = 'other', bestLen = 0;   // longest match wins (x.com/i/grok beats a plain host)
+  for (const [k,p] of Object.entries(PROVIDERS)) for (const x of p.hosts){
+    const hit = x.includes('/') ? (full === x || full.startsWith(x + '/') || full.startsWith(x + '?')) : (h === x || h.endsWith('.' + x));
+    if (hit && x.length > bestLen){ best = k; bestLen = x.length; }
+  }
+  return best;
+}
+/* type-ahead ranking for the provider picker */
+function searchProviders(q){
+  q = q.trim().toLowerCase();
+  const list = Object.entries(PROVIDERS).filter(([k]) => k !== 'other');
+  if (!q) return list.sort((a,b) => (db.bar.indexOf(a[0]) + 1 || 99) - (db.bar.indexOf(b[0]) + 1 || 99)).slice(0, 40);
+  return list.map(([k,p]) => {
+    const name = p.name.toLowerCase(), words = (name + ' ' + p.aliases + ' ' + p.hosts.join(' ')).split(/[\s().\/-]+/);
+    const s = name.startsWith(q) ? 3 : words.some(w => w.startsWith(q)) ? 2 : (name + ' ' + p.aliases).includes(q) ? 1 : 0;
+    return [k, p, s];
+  }).filter(x => x[2]).sort((a,b) => b[2]-a[2] || a[1].name.length - b[1].name.length).map(([k,p]) => [k,p]).slice(0, 8);
+}
+function addCustomProvider(name, url){
+  name = name.trim().replace(/\s+/g,' ').slice(0, 40);
+  if (!name) return null;
+  const existing = Object.entries(PROVIDERS).find(([,p]) => p.name.toLowerCase() === name.toLowerCase());
+  if (existing) return existing[0];
+  let key = 'x-' + name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  while (PROVIDERS[key]) key += '1';
+  let hosts = [];
+  try { const h = new URL(url).hostname.replace(/^www\./,''); if (h && detect(url) === 'other') hosts = [h]; } catch {}
+  const p = { name, color: SWATCHES[Object.keys(db.customProviders).length % SWATCHES.length], hosts };
+  db.customProviders[key] = p; registerProvider(key, { ...p, custom:true }); save();
+  return key;
+}
+function hostName(url){ try { return new URL(url).hostname.replace(/^www\./,''); } catch { return ''; } }
+function guessName(url){
+  const h = hostName(url); if (!h) return '';
+  const parts = h.split('.'); const core = parts.length > 2 && /^(chat|app|www|agent|web)$/.test(parts[0]) ? parts[1] : parts[parts.length - 2] || parts[0];
+  return core ? core[0].toUpperCase() + core.slice(1) : '';
 }
 function normUrl(u){
   try { const x = new URL(u); return (x.hostname.replace(/^www\./,'') + x.pathname.replace(/\/+$/,'')).toLowerCase(); }
@@ -500,7 +593,7 @@ function genericTitle(t){ return !t || /^(claude|chatgpt|gemini|google gemini|ne
 /* What actually happens when a chat is opened in "app" mode. */
 function appLink(c){
   if (IS_MOBILE) return c.url;                       // iOS/Android: universal links open the installed app
-  const tpl = db.templates[c.provider] || '{url}';
+  const tpl = db.templates[c.provider] || P(c.provider).app || '{url}';
   if (tpl.trim() === '{url}') return c.url;
   let u; try { u = new URL(c.url); } catch { return c.url; }
   const path = u.pathname.replace(/\/+$/,'');
@@ -565,7 +658,7 @@ function fieldsOf(c){
   return {
     title: c.title.toLowerCase(), tags: (c.tags||[]).join(' ').toLowerCase(), kw: (c.keywords||[]).join(' ').toLowerCase(),
     summary: (c.summary||'').toLowerCase(), notes: (c.notes||'').toLowerCase(), folder: (c.folder||'').toLowerCase(),
-    prov: PROVIDERS[c.provider]?.name.toLowerCase() || '', ctx: (c.context||'').toLowerCase(), url: c.url.toLowerCase(),
+    prov: (P(c.provider).name + ' ' + P(c.provider).aliases).toLowerCase(), ctx: (c.context||'').toLowerCase(), url: c.url.toLowerCase(),
   };
 }
 function score(c, tokens){
@@ -580,7 +673,7 @@ function score(c, tokens){
     if (f.summary.includes(t)) s += 5;
     if (f.folder.includes(t)) s += 4;
     if (f.notes.includes(t)) s += 4;
-    if (f.prov.startsWith(t)) s += 3;
+    if (f.prov.split(/\s+/).some(w => w.startsWith(t))) s += 3;
     if (f.ctx.includes(t)) s += 2;
     if (f.url.includes(t)) s += 1;
     if (!s) return 0;           // every word must match somewhere
@@ -659,9 +752,12 @@ function render(){
   $('#tagsHead').style.display = tags.length ? '' : 'none';
   $('#nav-tags').innerHTML = tags.map(([t, c]) => navItem({ attrs:`data-tag="${esc(t)}"`, ic:icon('tag'), label:esc(t), count:c, on: ui.view === 'tag' && ui.tag === t })).join('');
 
+  const barKeys = [...db.bar.filter(k => PROVIDERS[k])];
+  if (ui.provider && !barKeys.includes(ui.provider)) barKeys.push(ui.provider);
+  if (db.chats.some(c => c.provider === 'other') && !barKeys.includes('other')) barKeys.push('other');
   $('#provSeg').innerHTML = `<button data-prov="" class="${!ui.provider ? 'on' : ''}">All</button>` +
-    Object.entries(PROVIDERS).filter(([k]) => k !== 'other' || db.chats.some(c => c.provider === 'other'))
-      .map(([k,p]) => `<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}"><span class="dot" style="background:${p.color}"></span>${p.name}</button>`).join('');
+    barKeys.map(k => { const p = P(k), n = db.chats.filter(c => c.provider === k).length;
+      return `<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${esc(p.name)} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`; }).join('');
 
   $('#aiDot').classList.toggle('on', !!db.settings.apiKey);
   $('#aiDot').title = db.settings.apiKey ? 'Claude AI is on' : 'Claude AI is off';
@@ -670,7 +766,7 @@ function render(){
   const title = ui.view === 'folder' ? ui.folder.split('/').pop() : ui.view === 'tag' ? '#' + ui.tag
     : { all:'All Chats', recent:'Recent', pinned:'Pinned', unfiled:'Unfiled' }[ui.view];
   $('#viewTitle').textContent = title;
-  $('#viewSub').textContent = ai ? `${list.length} found by Claude` : `${list.length} chat${list.length === 1 ? '' : 's'}${ui.provider ? ' · ' + PROVIDERS[ui.provider].name : ''}`;
+  $('#viewSub').textContent = ai ? `${list.length} found by Claude` : `${list.length} chat${list.length === 1 ? '' : 's'}${ui.provider ? ' · ' + P(ui.provider).name : ''}`;
   ui.sel = Math.min(ui.sel, Math.max(0, list.length - 1));
 
   let html = '';
@@ -690,7 +786,7 @@ function render(){
   $('#grid').innerHTML = html;
 }
 function card(c, i, tokens){
-  const p = PROVIDERS[c.provider] || PROVIDERS.other;
+  const p = P(c.provider);
   const native = IS_MOBILE || opensNative(c);   // on phones the web link itself opens the installed app
   const mode = c.openIn === 'app'
     ? `<span class="chip mode" title="${native ? 'Opens in the ' + p.name + ' app' : 'Opens the website (no app link available here)'}">${icon('app')}${native ? 'App' : 'App → web'}</span>`
@@ -705,7 +801,7 @@ function card(c, i, tokens){
     <div class="card-h">
       <div class="av" style="background:${p.color}">${p.letter}</div>
       <div class="card-t"><b>${hl(c.title, tokens)}</b>
-        <small><span>${p.name}</span>·<span>${ago(c.lastOpened)}</span></small></div>
+        <small><span>${esc(p.name)}</span>·<span>${ago(c.lastOpened)}</span></small></div>
     </div>
     ${body ? `<div class="sum">${hl(body, tokens)}</div>` : ''}
     ${snip ? `<div class="sum" style="font-style:italic">“${hl(snip, tokens)}”</div>` : ''}
@@ -727,7 +823,7 @@ function openChat(c, mode){
   c.lastOpened = Date.now(); save(); render();
   launch(url);
   if (!/^https?:/i.test(url)){
-    const name = PROVIDERS[c.provider].name;
+    const name = P(c.provider).name;
     toast(`Opening in the ${name} app…`, 'Open website instead', () => launch(c.url), 6000);
   }
 }
@@ -755,15 +851,16 @@ const F = {};
 
 function setProv(k){
   provPicked = k;
-  $('#provPick').innerHTML = Object.entries(PROVIDERS).map(([key,p]) =>
-    `<button type="button" data-p="${key}" class="${key === k ? 'on' : ''}"><span class="dot" style="background:${p.color}"></span>${p.name}</button>`).join('');
+  const p = P(k);
+  $('#f-prov').value = k === 'other' ? '' : p.name;
+  $('#provDot').style.background = p.color;
   setOpen(openIn);
 }
 function setOpen(v){
   openIn = v;
   $$('#openPick button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   const fake = { url: F.url.value.trim(), provider: provPicked, openIn: 'app' };
-  const name = PROVIDERS[provPicked].name;
+  const name = P(provPicked).name;
   let msg;
   if (v === 'web') msg = 'Opens in a new browser tab.';
   else if (IS_MOBILE) msg = `Opens the link, and your phone hands it to the ${name} app if it's installed.`;
@@ -771,7 +868,7 @@ function setOpen(v){
   else if (provPicked === 'claude') msg = 'Only links like claude.ai/chat/… or claude.ai/project/… can open in the app. This one will open the website.';
   else if (provPicked === 'chatgpt') msg = 'The ChatGPT Mac app has no way to open a specific chat from a link, so this opens the website. On iPhone it opens the app.';
   else if (provPicked === 'gemini') msg = 'Gemini has no Mac app, so this opens the website. On a phone it opens the Gemini app.';
-  else msg = 'No app link is set for this provider, so it opens the website.';
+  else msg = `${esc(name)} has no desktop app link, so this opens the website. On a phone, the link opens the app if one is installed.`;
   $('#openHint').innerHTML = msg;
 }
 function openEditor(c, prefill){
@@ -782,7 +879,7 @@ function openEditor(c, prefill){
   $('#ctxBox').open = !!(d.context) && !c;
   updateCtxLabel();
   $('#editTitle').textContent = c ? 'Edit Chat' : 'Add Chat';
-  $('#editSub').textContent = c ? PROVIDERS[c.provider].name + ' · added ' + new Date(c.created).toLocaleDateString() : (d.context ? 'Captured from your browser. Check the details and save.' : 'Paste a link from ChatGPT, Claude or Gemini.');
+  $('#editSub').textContent = c ? P(c.provider).name + ' · added ' + new Date(c.created).toLocaleDateString() : (d.context ? 'Captured from your browser. Check the details and save.' : 'Paste a link from any AI chat. The provider is detected automatically.');
   $('#delBtn').style.display = c ? '' : 'none';
   const prov = d.provider || detect(d.url || '');
   openIn = d.openIn || (prov === 'claude' && !IS_MOBILE ? 'app' : 'web');   // Claude defaults to the app (verified to work)
@@ -854,6 +951,7 @@ function saveEditor(){
     if (dup) { Object.assign(dup, data); toast('You’d already saved this chat, so it was updated'); }
     else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, ...data });
   }
+  if (!db.bar.includes(data.provider) && data.provider !== 'other') db.bar.push(data.provider);
   save(); render();
 }
 
@@ -915,7 +1013,7 @@ async function analyzeChat({ url, title, provider, context, notes }){
   const user = [
     'Here is one saved chat. Work out what it is about so the person can find it again later by searching.',
     '',
-    `<chat provider="${PROVIDERS[provider]?.name || provider}" url="${url}">`,
+    `<chat provider="${P(provider).name}" url="${url}">`,
     `<page_title>${title || '(none)'}</page_title>`,
     notes ? `<my_notes>${notes}</my_notes>` : '',
     `<conversation_excerpt>\n${(context || '').slice(0, CTX_MAX) || '(no conversation text captured; rely on the title and URL)'}\n</conversation_excerpt>`,
@@ -992,7 +1090,7 @@ function showMenu(x, y, items){
 }
 function hideMenu(){ $('#menu').classList.remove('on'); }
 function chatMenu(c, x, y){
-  const p = PROVIDERS[c.provider];
+  const p = P(c.provider);
   const appUrl = appLink(c), canApp = !/^https?:/i.test(appUrl);
   const items = [
     { icon: c.openIn === 'app' && canApp ? 'app' : 'globe', label: 'Open', run: () => openChat(c) },
@@ -1028,6 +1126,59 @@ function removeChat(c){
 function copy(text){ navigator.clipboard?.writeText(text).then(() => toast('Link copied'), () => prompt('Copy this link:', text)); }
 
 /* ============================================================
+   Combobox (type-ahead dropdown), used for providers
+   ============================================================ */
+const combo = { el: null, input: null, items: [], idx: 0, opts: null };
+function attachCombo(input, opts){
+  const show = () => {
+    const q = input.value;
+    const matches = searchProviders(input === $('#f-prov') && provPicked !== 'other' && q === P(provPicked).name ? '' : q);
+    const extra = opts.extra ? opts.extra(q) : '';
+    combo.items = matches.map(([k,p]) => ({ k, p }));
+    if (extra) q.trim() ? combo.items.push({ create: extra }) : combo.items.unshift({ create: extra });   // a name guessed from an unknown link goes first
+    combo.idx = 0; combo.input = input; combo.opts = opts;
+    const el = $('#combo');
+    const host = input.closest('dialog') || document.body;   // modal dialogs sit in the top layer, so the list must live inside them
+    if (el.parentNode !== host) host.appendChild(el);
+    if (!combo.items.length){ el.innerHTML = '<div class="combo-empty">No match. Keep typing to add it.</div>'; }
+    else el.innerHTML = combo.items.map((it, i) => it.create
+      ? `<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}">${icon('plus')}<span>Add “${esc(it.create)}”</span><small>new provider</small></button>`
+      : `<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}"><span class="dot" style="background:${it.p.color}"></span><span>${esc(it.p.name)}</span><small>${esc(it.p.hosts[0] || '')}</small></button>`).join('');
+    const r = input.getBoundingClientRect();
+    el.style.left = Math.min(r.left, innerWidth - 270) + 'px';
+    el.style.top = (r.bottom + 6) + 'px';
+    el.style.minWidth = Math.max(240, r.width) + 'px';
+    el.classList.add('on');
+  };
+  const pick = i => {
+    const it = combo.items[i]; hideCombo();
+    if (it) opts.onPick(it.k, it.create);
+  };
+  input.addEventListener('focus', () => { if (input.id === 'f-prov') input.select(); show(); });
+  input.addEventListener('input', show);
+  input.addEventListener('keydown', e => {
+    if (!$('#combo').classList.contains('on')) { if (e.key === 'ArrowDown'){ show(); e.preventDefault(); } return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      combo.idx = (combo.idx + (e.key === 'ArrowDown' ? 1 : -1) + combo.items.length) % Math.max(1, combo.items.length);
+      $$('#combo button').forEach((b, i) => b.classList.toggle('on', i === combo.idx));
+      $$('#combo button')[combo.idx]?.scrollIntoView({ block:'nearest' });
+    } else if (e.key === 'Enter' || (e.key === 'Tab' && input.value.trim() && combo.items.length)){
+      e.preventDefault(); e.stopPropagation(); pick(combo.idx);
+    } else if (e.key === 'Escape'){
+      e.preventDefault(); e.stopPropagation(); hideCombo(); opts.onCancel && opts.onCancel(); input.blur();
+    }
+  });
+  input.addEventListener('blur', () => setTimeout(() => { if (combo.input === input && document.activeElement !== input){ hideCombo(); opts.onCancel && opts.onCancel(); } }, 150));
+  $('#combo').addEventListener('mousedown', e => {
+    if (combo.input !== input) return;
+    const b = e.target.closest('[data-i]'); if (!b) return;
+    e.preventDefault(); pick(+b.dataset.i);
+  });
+}
+function hideCombo(){ $('#combo').classList.remove('on'); combo.input = null; }
+
+/* ============================================================
    Toast
    ============================================================ */
 function toast(msg, actionLabel, action, ms = 3200){
@@ -1059,8 +1210,9 @@ function renderAppStatus(){
   $('#appStatus').innerHTML = rows.map(([s, t, d]) => `<div class="status-row"><span class="${s}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
 }
 function renderTpl(){
-  $('#tplRows').innerHTML = Object.entries(PROVIDERS).map(([k,p]) =>
-    `<label>${p.name}</label><input class="field" data-tpl="${k}" value="${esc(db.templates[k])}" spellcheck="false">`).join('');
+  const keys = [...new Set(['chatgpt','claude','gemini', ...db.bar, ...db.chats.map(c => c.provider)])].filter(k => k !== 'other' && PROVIDERS[k]);
+  $('#tplRows').innerHTML = keys.map(k =>
+    `<label>${esc(P(k).name)}</label><input class="field" data-tpl="${k}" value="${esc(db.templates[k] || P(k).app)}" spellcheck="false">`).join('');
 }
 function openSettings(tab){
   $('#bookmarklet').href = bookmarkletHref();
@@ -1136,6 +1288,7 @@ $('#grid').oncontextmenu = e => {
   chatMenu(c, e.clientX, e.clientY);
 };
 document.addEventListener('click', e => { if (!e.target.closest('#menu')) hideMenu(); });
+window.addEventListener('resize', hideCombo);
 document.addEventListener('scroll', hideMenu, true);
 window.addEventListener('blur', hideMenu);
 
@@ -1220,7 +1373,31 @@ F.url.addEventListener('input', () => {
   if (p !== 'other' || !editing) setProv(p); else setOpen(openIn);
 });
 F.context.addEventListener('input', () => { updateCtxLabel(); if (db.settings.apiKey) setAiBar(); });
-$('#provPick').onclick = e => { const b = e.target.closest('[data-p]'); if (b) setProv(b.dataset.p); };
+attachCombo($('#f-prov'), {
+  extra: q => { const g = q.trim() || (provPicked === 'other' ? guessName(F.url.value) : ''); return g && !Object.values(PROVIDERS).some(p => p.name.toLowerCase() === g.toLowerCase()) ? g : ''; },
+  onPick: (k, created) => { if (created) k = addCustomProvider(created, F.url.value); if (k){ setProv(k); if (!editing && !openTouched) setOpen(k === 'claude' && !IS_MOBILE ? 'app' : 'web'); } },
+  onCancel: () => setProv(provPicked),
+});
+attachCombo($('#provAdd'), {
+  extra: q => q.trim() && !Object.values(PROVIDERS).some(p => p.name.toLowerCase() === q.trim().toLowerCase()) ? q.trim() : '',
+  onPick: (k, created) => {
+    if (created) k = addCustomProvider(created, '');
+    if (!k) return;
+    if (!db.bar.includes(k)) db.bar.push(k);
+    ui.provider = k; ui.sel = 0; ui.aiIds = null; save(); render();
+    $('#provAdd').value = ''; $('#provAdd').blur();
+  },
+  onCancel: () => { $('#provAdd').value = ''; },
+});
+$('#provSeg').oncontextmenu = e => {
+  const b = e.target.closest('[data-prov]'); if (!b || !b.dataset.prov) return;
+  e.preventDefault();
+  const k = b.dataset.prov, p = P(k);
+  showMenu(e.clientX, e.clientY, [
+    { icon:'search', label:`Show only ${p.name}`, run: () => { ui.provider = k; render(); } },
+    { icon:'trash', label:'Remove from bar', run: () => { db.bar = db.bar.filter(x => x !== k); if (ui.provider === k) ui.provider = null; save(); render(); } },
+  ]);
+};
 $('#openPick').onclick = e => { const b = e.target.closest('[data-v]'); if (b){ openTouched = true; setOpen(b.dataset.v); } };
 $('#aiRun').onclick = () => { if ($('#aiRun').dataset.mode === 'setup'){ $('#editDlg').close(); openSettings('ai'); } else aiFill(); };
 $('#editForm').addEventListener('submit', e => { if (e.submitter?.value === 'ok') saveEditor(); });
