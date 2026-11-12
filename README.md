@@ -7,7 +7,7 @@ Save the ChatGPT, Claude, Gemini, Kimi, DeepSeek and Grok chats that matter (34 
 - **Stays on your device.** No account, no server, no tracking. Chats live in your browser.
 - **You choose what to keep.** Save the conversations with real value, and find them again in seconds.
 - **Works across every AI you use**, opening each chat in its website or desktop app.
-- **Simple and durable.** Export a backup any time, in plain files you can open years from now.
+- **Simple and durable.** Back up to JSON, or export Markdown and an Obsidian-ready vault, in plain files you can open years from now.
 
 **Live:** https://mirasimali5005.github.io/agent-mash/ (styled like a native macOS app; install it to your Dock)
 ## What it does
@@ -51,5 +51,6 @@ Each major change has its own branch, so you can go back to it:
 | `feature/drag-reorder` | Drag to reorder, drag to folders, sort menu, keyboard moves |
 | `feature/privacy-messaging` | Privacy-first positioning: welcome screen, privacy badge, Privacy settings tab, erase-all |
 | `feature/backup-visibility` | Back up button in the sidebar, backup status and reminders, restore by dropping a file, storage protection |
+| `feature/markdown-export` | Export to an Obsidian vault (.zip) or one Markdown file; copy or save a single chat as Markdown |
 
 `main` contains all of them and is what GitHub Pages publishes.

@@ -447,6 +447,10 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div class="row" style="margin-top:10px"><button class="pill primary" id="exportBtn"><svg class="i"><use href="#i-download"/></svg>Download backup</button><button class="pill" id="importBtn"><svg class="i"><use href="#i-upload"/></svg>Restore from backup…</button></div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
     <p class="hint" style="margin-top:8px">Restoring adds chats you don't have yet. Nothing is overwritten. You can also drop a backup file onto the window.</p>
+    <h4>Export for notes apps</h4>
+    <p>Take your library into Obsidian, Logseq, Apple Notes or any Markdown editor. Each chat becomes a note with its link, summary, tags, your notes and the captured conversation.</p>
+    <div class="row"><button class="pill" id="mdVault"><svg class="i"><use href="#i-folder"/></svg>Obsidian vault (.zip)</button><button class="pill" id="mdSingle"><svg class="i"><use href="#i-download"/></svg>One Markdown file</button></div>
+    <p class="hint" style="margin-top:6px">The vault keeps your folders, uses YAML front matter Obsidian understands, and includes an index note that links every chat. Markdown is for reading. To restore your library, use the JSON backup above.</p>
     <h4>Storage protection</h4>
     <p id="persistInfo">Checking…</p>
     <h4>Reminders</h4>
@@ -473,7 +477,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div><svg class="i"><use href="#i-lock"/></svg><b>Stays on your device</b><span>No account. No server. No tracking. Your chats are stored in this browser and nowhere else.</span></div>
     <div><svg class="i"><use href="#i-star"/></svg><b>You choose what to keep</b><span>Not every chat is worth saving. Keep the ones with real value, and find them again in seconds.</span></div>
     <div><svg class="i"><use href="#i-stack"/></svg><b>Every AI you use</b><span>ChatGPT, Claude, Gemini, Kimi, DeepSeek, Grok and 28 more, all in one private place.</span></div>
-    <div><svg class="i"><use href="#i-copy"/></svg><b>Yours to take anywhere</b><span>Download a backup any time from the sidebar. It's plain JSON you can open years from now.</span></div>
+    <div><svg class="i"><use href="#i-copy"/></svg><b>Yours to take anywhere</b><span>Download a backup any time, or export Markdown for Obsidian. Plain files you can open years from now.</span></div>
   </div>
   <div class="sheet-foot"><button class="pill" id="welcomeCapture">Set up one-click capture</button><span class="flex"></span><button class="pill primary" id="welcomeStart">Start my library</button></div>
 </div></dialog>
@@ -1210,6 +1214,8 @@ function chatMenu(c, x, y){
     { icon:'folder', label:'Move to Folder…', run: () => { const f = prompt('Move to folder (blank = Unfiled):', c.folder); if (f !== null){ c.folder = cleanFolder(f); save(); render(); } } },
     db.settings.apiKey ? { icon:'sparkles', label:'Analyze with Claude', run: () => analyzeOne(c) } : null,
     { icon:'copy', label:'Copy Link', run: () => copy(c.url) },
+    { icon:'copy', label:'Copy as Markdown', run: () => navigator.clipboard?.writeText(chatToMarkdown(c)).then(() => toast('Markdown copied'), () => toast('Couldn’t copy')) },
+    { icon:'download', label:'Save as Markdown', run: () => downloadBlob(new Blob([chatToMarkdown(c)], { type:'text/markdown' }), fileSafe(c.title) + '.md') },
     '-',
     { icon:'trash', label:'Delete', danger:true, run: () => removeChat(c) },
   ].filter(Boolean);
@@ -1665,6 +1671,100 @@ $('#welcomeStart').onclick = () => { db.settings.welcomed = true; save(); $('#we
 $('#welcomeCapture').onclick = () => { db.settings.welcomed = true; save(); $('#welcomeDlg').close(); openSettings('capture'); };
 $('#welcomeDlg').addEventListener('cancel', () => { db.settings.welcomed = true; save(); });
 /* ============================================================
+   Markdown / Obsidian export
+   ============================================================ */
+const isoDay = t => { if (!t) return ''; const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };   // local date
+const yamlStr = v => JSON.stringify(String(v ?? ''));          // JSON strings are valid YAML double-quoted scalars
+const tagSafe = t => String(t).trim().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_\/-]/gu, '');
+const fileSafe = t => (String(t || 'Untitled').replace(/[\\/:*?"<>|#^\[\]]+/g, '-').replace(/\s+/g, ' ').replace(/^[\s.-]+|[\s.-]+$/g, '').slice(0, 80)) || 'Untitled';
+function quoteBlock(text){ return String(text).trim().split('\n').map(l => '> ' + l).join('\n'); }
+function chatToMarkdown(c, { frontmatter = true, level = 1 } = {}){
+  const p = P(c.provider), h = '#'.repeat(level);
+  const out = [];
+  if (frontmatter){
+    out.push('---',
+      `title: ${yamlStr(c.title)}`,
+      `provider: ${yamlStr(p.name)}`,
+      `url: ${yamlStr(c.url)}`,
+      c.folder ? `folder: ${yamlStr(c.folder)}` : null,
+      (c.tags || []).length ? 'tags:\n' + c.tags.map(t => '  - ' + tagSafe(t)).join('\n') : null,
+      `created: ${isoDay(c.created)}`,
+      c.lastOpened ? `last_opened: ${isoDay(c.lastOpened)}` : null,
+      c.pinned ? 'pinned: true' : null,
+      'source: agent-mash',
+      '---', '');
+  }
+  out.push(`${h} ${c.title}`, '', `**${p.name}** · [Open chat](${c.url})${c.folder ? ' · ' + c.folder : ''}${!frontmatter && (c.tags || []).length ? ' · ' + c.tags.map(t => '#' + tagSafe(t)).join(' ') : ''}`, '');
+  if (c.summary) out.push(`${h}# Summary`, '', c.summary, '');
+  if (c.notes) out.push(`${h}# My notes`, '', c.notes, '');
+  if (c.context) out.push(`${h}# Conversation excerpt`, '', quoteBlock(c.context), '');
+  return out.filter(l => l !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+}
+function libraryOrder(){ return [...db.chats].sort((a,b) => (a.folder || '\uffff').localeCompare(b.folder || '\uffff') || a.order - b.order); }
+function exportSingleMarkdown(){
+  if (!db.chats.length) return toast('Your library is empty');
+  const lines = [`# Agent Mash library`, '', `Exported ${new Date().toLocaleString()} · ${db.chats.length} chats`, ''];
+  let folder = null;
+  for (const c of libraryOrder()){
+    const f = c.folder || 'Unfiled';
+    if (f !== folder){ folder = f; lines.push(`## ${f}`, ''); }
+    lines.push(chatToMarkdown(c, { frontmatter:false, level:3 }), '---', '');
+  }
+  downloadBlob(new Blob([lines.join('\n')], { type:'text/markdown' }), `agent-mash-${isoDay(Date.now())}.md`);
+  toast(`Exported ${db.chats.length} chat(s) as Markdown`);
+}
+function exportVault(){
+  if (!db.chats.length) return toast('Your library is empty');
+  const root = 'Agent Mash', used = new Set(), files = [], index = new Map();
+  for (const c of libraryOrder()){
+    const dir = c.folder ? c.folder.split('/').map(fileSafe).join('/') : '';
+    let base = fileSafe(c.title), path = `${root}/${dir ? dir + '/' : ''}${base}.md`, n = 2;
+    while (used.has(path.toLowerCase())) path = `${root}/${dir ? dir + '/' : ''}${base} ${n++}.md`;
+    used.add(path.toLowerCase());
+    files.push({ name: path, text: chatToMarkdown(c) });
+    const key = c.folder || 'Unfiled';
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push(`- [[${path.slice(root.length + 1, -3)}|${c.title.replace(/[|\]]/g, '-')}]] · ${P(c.provider).name}${c.summary ? ': ' + c.summary.split('\n')[0] : ''}`);
+  }
+  const idx = ['---', 'source: agent-mash', `exported: ${isoDay(Date.now())}`, '---', '', '# Agent Mash index', '',
+    `${db.chats.length} saved AI chats. Each note links back to the original conversation.`, ''];
+  for (const [f, items] of index) idx.push(`## ${f}`, '', ...items, '');
+  files.unshift({ name: `${root}/Agent Mash index.md`, text: idx.join('\n') });
+  downloadBlob(zipFiles(files), `agent-mash-vault-${isoDay(Date.now())}.zip`);
+  toast(`Exported ${db.chats.length} note(s). Unzip into your Obsidian vault.`);
+}
+function downloadBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+/* minimal ZIP writer (stored, no compression) so the export needs no library or network */
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b){ let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipFiles(files){
+  const enc = new TextEncoder(), parts = [], central = [];
+  const d = new Date(), time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let offset = 0;
+  for (const f of files){
+    const name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    [[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[8,0,2],[10,time,2],[12,date,2],[14,crc,4],[18,data.length,4],[22,data.length,4],[26,name.length,2],[28,0,2]]
+      .forEach(([o, v, sz]) => sz === 4 ? lh.setUint32(o, v, true) : lh.setUint16(o, v, true));
+    const ch = new DataView(new ArrayBuffer(46));
+    [[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[10,0,2],[12,time,2],[14,date,2],[16,crc,4],[20,data.length,4],[24,data.length,4],[28,name.length,2],[30,0,2],[32,0,2],[34,0,2],[36,0,2],[38,0,4],[42,offset,4]]
+      .forEach(([o, v, sz]) => sz === 4 ? ch.setUint32(o, v, true) : ch.setUint16(o, v, true));
+    parts.push(lh, name, data); central.push(ch, name);
+    offset += 30 + name.length + data.length;
+  }
+  const size = central.reduce((a, x) => a + x.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end], { type:'application/zip' });
+}
+$('#mdVault').onclick = exportVault;
+$('#mdSingle').onclick = exportSingleMarkdown;
+
+/* ============================================================
    Backup
    ============================================================ */
 function chatSig(){
@@ -1696,7 +1796,7 @@ function exportBackup(){
   const out = { app:'agent-mash', version:1, exported:new Date().toISOString(), ...db, settings: { ...db.settings, apiKey: '' } };
   const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `agent-mash-backup-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  a.download = `agent-mash-backup-${isoDay(Date.now())}.json`; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1500);
   db.settings.lastBackup = Date.now(); db.settings.backupSig = chatSig(); save(); render(); renderBackupState();
   toast(`Backup downloaded: ${db.chats.length} chat(s)`);
