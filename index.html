@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Mash</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
+<style>
+:root{
+  --bg:#f6f6f4;--panel:#fff;--text:#1d1d1f;--muted:#6b6b70;--line:#e3e3e0;--accent:#3b5bdb;--accent-soft:#e8edff;
+  --claude:#d97757;--chatgpt:#10a37f;--gemini:#4285f4;--other:#8a8a8f;--danger:#c92a2a;
+  --radius:10px;--shadow:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141416;--panel:#1d1d20;--text:#ececef;--muted:#9a9aa2;--line:#2e2e33;--accent:#7b93ff;--accent-soft:#252c47;--shadow:none;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.app{display:grid;grid-template-columns:240px 1fr;height:100vh}
+aside{border-right:1px solid var(--line);padding:16px 12px;overflow:auto;background:var(--panel)}
+.brand{font-weight:700;font-size:16px;padding:0 8px 14px;display:flex;align-items:center;gap:8px}
+.nav-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 8px 6px;display:flex;justify-content:space-between;align-items:center}
+.nav-h button{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 4px}
+.nav a{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:7px;color:inherit;text-decoration:none;cursor:pointer;user-select:none}
+.nav a:hover{background:var(--bg)}
+.nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav .count{color:var(--muted);font-size:12px}
+.nav a .del{visibility:hidden;border:0;background:none;color:var(--muted);padding:0 2px}
+.nav a:hover .del{visibility:visible}
+main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.top{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel)}
+.search{flex:1;min-width:200px;position:relative}
+.search input{width:100%;padding:10px 12px 10px 34px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);outline:none}
+.search input:focus{border-color:var(--accent)}
+.search::before{content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-52%);color:var(--muted);font-size:17px}
+.kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 12px;border-radius:8px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--danger)}
+.chips{padding:10px 20px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 11px;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.spacer{flex:1}
+.view-title{font-weight:600;font-size:13px;color:var(--muted)}
+.list{padding:12px 20px 40px;overflow:auto;flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;align-content:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;cursor:pointer;position:relative;border-left:4px solid var(--c)}
+.card:hover,.card.sel{border-color:var(--accent);border-left-color:var(--c)}
+.card.sel{outline:2px solid var(--accent-soft)}
+.card .t{font-weight:600;padding-right:56px;word-break:break-word}
+.card .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card .notes{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tag{background:var(--bg);border-radius:5px;padding:0 6px;font-size:12px}
+.badge{font-size:11px;border:1px solid var(--line);border-radius:5px;padding:0 5px}
+.actions{position:absolute;top:8px;right:8px;display:flex;gap:2px}
+.actions button{border:0;background:none;color:var(--muted);padding:3px 5px;border-radius:5px;font-size:14px}
+.actions button:hover{background:var(--bg);color:var(--text)}
+.actions .pin.on{color:#e8a400}
+mark{background:#ffe066;color:inherit;border-radius:2px}
+@media (prefers-color-scheme:dark){mark{background:#6b5a00}}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:60px 20px}
+.empty h2{color:var(--text);font-size:18px;margin:0 0 8px}
+dialog{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--text);width:min(520px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:12px}
+.dlg h3{margin:0}
+.dlg label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.dlg input,.dlg select,.dlg textarea{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;outline:none}
+.dlg input:focus,.dlg textarea:focus,.dlg select:focus{border-color:var(--accent)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--bg);padding:8px}
+.seg button.on{background:var(--accent);color:#fff}
+.foot{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.hint{font-size:12px;color:var(--muted);margin:0}
+code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px}
+.bm{display:inline-block;padding:7px 12px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;cursor:grab}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+.menu-btn{display:none}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  aside{position:fixed;inset:0 30% 0 0;z-index:5;transform:translateX(-100%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.3)}
+  aside.open{transform:none}
+  .menu-btn{display:inline-block}
+  .top{padding:10px 16px}.chips{padding:10px 16px 0}.list{padding:12px 16px 40px;grid-template-columns:1fr}
+  .kbd{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div class="brand">🗂️ Agent Mash</div>
+    <div class="nav" id="views"></div>
+    <div class="nav-h">Folders <button id="addFolder" title="New folder">+</button></div>
+    <div class="nav" id="folders"></div>
+    <div class="nav-h">Tags</div>
+    <div class="nav" id="tags"></div>
+    <div class="nav-h">Data</div>
+    <div class="nav">
+      <a id="openSettings">⚙️ Settings & capture</a>
+      <a id="exportBtn">⬇️ Export backup</a>
+      <a id="importBtn">⬆️ Import backup</a>
+    </div>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </aside>
+  <main>
+    <div class="top">
+      <button class="btn menu-btn" id="menuBtn">☰</button>
+      <div class="search"><input id="q" placeholder="Search titles, notes, tags, folders…" autocomplete="off"><span class="kbd">/</span></div>
+      <button class="btn" id="openAll" title="Open every chat in this view">Open all</button>
+      <button class="btn primary" id="addBtn">+ Add chat</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="list" id="list"></div>
+  </main>
+</div>
+
+<dialog id="editDlg"><form class="dlg" method="dialog" id="editForm">
+  <h3 id="editTitle">Add chat</h3>
+  <label>Chat link<input name="url" required placeholder="https://claude.ai/chat/…  ·  https://chatgpt.com/c/…  ·  https://gemini.google.com/app/…"></label>
+  <label>Title<input name="title" required placeholder="What is this chat about?"></label>
+  <div class="row">
+    <label>Provider<select name="provider"></select></label>
+    <label>Folder<input name="folder" list="folderList" placeholder="e.g. Work/Startup"></label>
+  </div>
+  <datalist id="folderList"></datalist>
+  <label>Tags (comma separated)<input name="tags" placeholder="research, pricing, essay"></label>
+  <label>Notes (searchable)<textarea name="notes" rows="2" placeholder="Keywords you'd search for later"></textarea></label>
+  <label>Open in</label>
+  <div class="seg" id="openInSeg"><button type="button" data-v="web">🌐 Website</button><button type="button" data-v="app">💻 App</button></div>
+  <p class="hint" id="openInHint"></p>
+  <div class="foot">
+    <button type="button" class="btn danger" id="delBtn" style="margin-right:auto">Delete</button>
+    <button type="button" class="btn" value="cancel" id="cancelEdit">Cancel</button>
+    <button class="btn primary" value="ok">Save</button>
+  </div>
+</form></dialog>
+
+<dialog id="setDlg"><div class="dlg">
+  <h3>Settings & capture</h3>
+  <p class="hint"><b>One-click capture.</b> Drag this button to your bookmarks bar. While you're on any ChatGPT / Claude / Gemini chat, click it — Agent Mash opens with the link and title already filled in.</p>
+  <p><a class="bm" id="bookmarklet" href="#">＋ Save to Agent Mash</a></p>
+  <hr style="border:0;border-top:1px solid var(--line);width:100%">
+  <p class="hint"><b>“Open in app” links.</b> <code>{url}</code> = full link, <code>{path}</code> = path after the domain (e.g. <code>/chat/abc</code>), <code>{id}</code> = last part of the path. Leave as <code>{url}</code> to just open the website (on iPhone/Android that still opens the installed app).</p>
+  <div id="tplRows"></div>
+  <div class="foot"><button class="btn" id="resetTpl" style="margin-right:auto">Reset defaults</button><button class="btn primary" id="closeSet">Done</button></div>
+</div></dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const KEY = 'agentmash.v1';
+const PROVIDERS = {
+  chatgpt: {name:'ChatGPT', color:'var(--chatgpt)', hosts:['chatgpt.com','chat.openai.com'], app:'{url}'},
+  claude:  {name:'Claude',  color:'var(--claude)',  hosts:['claude.ai'], app:'claude://claude.ai{path}'},
+  gemini:  {name:'Gemini',  color:'var(--gemini)',  hosts:['gemini.google.com','aistudio.google.com'], app:'{url}'},
+  other:   {name:'Other',   color:'var(--other)',   hosts:[], app:'{url}'},
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+// ---------- state ----------
+let db = load();
+let ui = { view:'all', folder:null, tag:null, providers:new Set(), q:'', sel:0 };
+let editing = null, openIn = 'web';
+
+function load(){
+  try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && Array.isArray(d.chats)) return normalize(d); } catch {}
+  return normalize({});
+}
+function normalize(d){
+  return { chats: d.chats || [], folders: d.folders || [], templates: Object.assign(defaultTemplates(), d.templates || {}) };
+}
+function defaultTemplates(){ return Object.fromEntries(Object.entries(PROVIDERS).map(([k,p]) => [k, p.app])); }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { toast('Could not save (storage blocked?)'); } }
+
+// ---------- helpers ----------
+function detect(url){
+  try {
+    const h = new URL(url).hostname.replace(/^www\./,'');
+    for (const [k,p] of Object.entries(PROVIDERS)) if (p.hosts.some(x => h === x || h.endsWith('.'+x))) return k;
+  } catch {}
+  return 'other';
+}
+function cleanTitle(t, provider){
+  return String(t||'').replace(/\s*[-|–—]\s*(Claude|ChatGPT|Gemini|Google Gemini)\s*$/i,'').replace(/^(Claude|ChatGPT|Gemini)\s*[-|–—]\s*/i,'').trim();
+}
+function appUrl(c){
+  const tpl = db.templates[c.provider] || '{url}';
+  let path = '', id = '';
+  try { const u = new URL(c.url); path = u.pathname + u.search; id = u.pathname.split('/').filter(Boolean).pop() || ''; } catch {}
+  return tpl.replaceAll('{url}', c.url).replaceAll('{path}', path).replaceAll('{id}', id);
+}
+function targetUrl(c){ return c.openIn === 'app' ? appUrl(c) : c.url; }
+function ago(t){
+  if (!t) return 'never opened';
+  const s = (Date.now()-t)/1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60)+'m ago';
+  if (s < 86400) return Math.floor(s/3600)+'h ago';
+  if (s < 86400*30) return Math.floor(s/86400)+'d ago';
+  return new Date(t).toLocaleDateString();
+}
+function allFolders(){
+  const set = new Set(db.folders);
+  db.chats.forEach(c => { if (c.folder) { const parts = c.folder.split('/'); parts.forEach((_,i) => set.add(parts.slice(0,i+1).join('/'))); } });
+  return [...set].sort((a,b) => a.localeCompare(b));
+}
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200); }
+
+// ---------- search ----------
+function score(c, tokens){
+  if (!tokens.length) return 1;
+  const f = { title:c.title.toLowerCase(), tags:(c.tags||[]).join(' ').toLowerCase(), notes:(c.notes||'').toLowerCase(),
+              folder:(c.folder||'').toLowerCase(), prov:PROVIDERS[c.provider].name.toLowerCase(), url:c.url.toLowerCase() };
+  let total = 0;
+  for (const t of tokens){
+    let s = 0;
+    if (f.title.includes(t)) s += f.title.split(/\W+/).some(w => w.startsWith(t)) ? 10 : 6;
+    if (f.tags.includes(t)) s += 6;
+    if (f.folder.includes(t)) s += 4;
+    if (f.notes.includes(t)) s += 3;
+    if (f.prov.startsWith(t)) s += 3;
+    if (f.url.includes(t)) s += 1;
+    if (!s) return 0;                // every word must match somewhere
+    total += s;
+  }
+  return total;
+}
+function visible(){
+  const tokens = ui.q.toLowerCase().split(/\s+/).filter(Boolean);
+  let list = db.chats.filter(c => {
+    if (ui.view === 'pinned' && !c.pinned) return false;
+    if (ui.view === 'folder' && !(c.folder === ui.folder || (c.folder||'').startsWith(ui.folder + '/'))) return false;
+    if (ui.view === 'unfiled' && c.folder) return false;
+    if (ui.view === 'tag' && !(c.tags||[]).includes(ui.tag)) return false;
+    if (ui.providers.size && !ui.providers.has(c.provider)) return false;
+    return true;
+  }).map(c => ({c, s:score(c, tokens)})).filter(x => x.s > 0);
+  const rec = x => x.c.lastOpened || x.c.created || 0;
+  list.sort((a,b) => tokens.length ? (b.s-a.s) || (rec(b)-rec(a))
+                                   : ui.view === 'recent' ? rec(b)-rec(a)
+                                   : (b.c.pinned-a.c.pinned) || (rec(b)-rec(a)));
+  if (ui.view === 'recent' && !tokens.length) list = list.slice(0, 30);
+  return { list: list.map(x => x.c), tokens };
+}
+function hl(text, tokens){
+  let out = esc(text);
+  for (const t of tokens){ if (t.length < 2) continue; out = out.replace(new RegExp('(' + esc(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')(?![^<]*>)','ig'), '<mark>$1</mark>'); }
+  return out;
+}
+
+// ---------- render ----------
+function render(){
+  const counts = { all: db.chats.length, recent: db.chats.filter(c => c.lastOpened).length, pinned: db.chats.filter(c => c.pinned).length, unfiled: db.chats.filter(c => !c.folder).length };
+  $('#views').innerHTML = [['all','📚 All chats'],['recent','🕘 Recent'],['pinned','⭐ Pinned'],['unfiled','📥 Unfiled']]
+    .map(([v,l]) => `<a data-view="${v}" class="${ui.view===v?'on':''}">${l}<span class="count">${counts[v]}</span></a>`).join('');
+
+  const folders = allFolders();
+  $('#folders').innerHTML = folders.map(f => {
+    const depth = f.split('/').length - 1, name = f.split('/').pop();
+    const n = db.chats.filter(c => c.folder === f || (c.folder||'').startsWith(f+'/')).length;
+    return `<a data-folder="${esc(f)}" class="${ui.view==='folder'&&ui.folder===f?'on':''}" style="padding-left:${8+depth*14}px">
+      <span>📁 ${esc(name)}</span><span><button class="del" data-delfolder="${esc(f)}" title="Remove folder">×</button><span class="count">${n}</span></span></a>`;
+  }).join('') || '<p class="hint" style="padding:0 8px">Type a folder like <code>Work/Startup</code> when adding a chat, or press +.</p>';
+  $('#folderList').innerHTML = folders.map(f => `<option value="${esc(f)}">`).join('');
+
+  const tagCounts = {};
+  db.chats.forEach(c => (c.tags||[]).forEach(t => tagCounts[t] = (tagCounts[t]||0)+1));
+  $('#tags').innerHTML = Object.entries(tagCounts).sort((a,b) => b[1]-a[1]).slice(0,25)
+    .map(([t,n]) => `<a data-tag="${esc(t)}" class="${ui.view==='tag'&&ui.tag===t?'on':''}"># ${esc(t)}<span class="count">${n}</span></a>`).join('') || '<p class="hint" style="padding:0 8px">No tags yet.</p>';
+
+  const viewName = ui.view==='folder' ? '📁 '+ui.folder : ui.view==='tag' ? '# '+ui.tag : {all:'All chats',recent:'Recently opened',pinned:'Pinned',unfiled:'Unfiled'}[ui.view];
+  $('#chips').innerHTML = Object.entries(PROVIDERS).map(([k,p]) =>
+    `<button class="chip ${ui.providers.has(k)?'on':''}" data-prov="${k}"><span class="dot" style="background:${p.color}"></span>${p.name} <span class="count">${db.chats.filter(c=>c.provider===k).length}</span></button>`).join('')
+    + `<span class="spacer"></span><span class="view-title">${esc(viewName)}</span>`;
+
+  const { list, tokens } = visible();
+  ui.sel = Math.min(ui.sel, Math.max(0, list.length-1));
+  if (!db.chats.length){
+    $('#list').innerHTML = `<div class="empty"><h2>No chats saved yet</h2><p>Click <b>+ Add chat</b> and paste a link from ChatGPT, Claude or Gemini,<br>or set up the one-click bookmark in <a href="#" data-open-settings>Settings & capture</a>.</p></div>`;
+    return;
+  }
+  if (!list.length){ $('#list').innerHTML = `<div class="empty"><h2>Nothing matches</h2><p>Try fewer words, or clear the provider filter.</p></div>`; return; }
+  $('#list').innerHTML = list.map((c,i) => {
+    const p = PROVIDERS[c.provider];
+    return `<div class="card ${i===ui.sel?'sel':''}" data-id="${c.id}" style="--c:${p.color}" title="${esc(targetUrl(c))}">
+      <div class="actions">
+        <button class="pin ${c.pinned?'on':''}" data-act="pin" title="Pin">${c.pinned?'★':'☆'}</button>
+        <button data-act="copy" title="Copy link">⧉</button>
+        <button data-act="edit" title="Edit">✎</button>
+      </div>
+      <div class="t">${hl(c.title, tokens)}</div>
+      <div class="meta"><span><span class="dot" style="background:${p.color}"></span> ${p.name}</span>
+        <span class="badge">${c.openIn==='app'?'💻 app':'🌐 web'}</span>
+        ${c.folder?`<span>📁 ${hl(c.folder,tokens)}</span>`:''}
+        <span>· ${ago(c.lastOpened)}</span></div>
+      ${(c.tags||[]).length?`<div class="meta">${c.tags.map(t=>`<span class="tag">#${hl(t,tokens)}</span>`).join('')}</div>`:''}
+      ${c.notes?`<div class="notes">${hl(c.notes,tokens)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ---------- actions ----------
+function openChat(c, quiet){
+  c.lastOpened = Date.now(); save();
+  const url = targetUrl(c);
+  if (/^https?:/i.test(url)) window.open(url, '_blank', 'noopener');
+  else window.location.href = url;          // custom app scheme (e.g. claude://)
+  if (!quiet) render();
+}
+function openAll(){
+  const { list } = visible();
+  if (!list.length) return;
+  if (list.length > 8 && !confirm(`Open ${list.length} chats at once?`)) return;
+  let blocked = 0;
+  list.forEach(c => {
+    c.lastOpened = Date.now();
+    const url = targetUrl(c);
+    if (/^https?:/i.test(url)) { if (!window.open(url, '_blank')) blocked++; }
+    else { const a = document.createElement('a'); a.href = url; a.click(); }
+  });
+  save(); render();
+  if (blocked) toast(`Browser blocked ${blocked} tab(s) — allow pop-ups for this site, then try again.`);
+}
+function setOpenIn(v){
+  openIn = v;
+  document.querySelectorAll('#openInSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const prov = $('#editForm').provider.value;
+  $('#openInHint').innerHTML = v === 'web' ? 'Opens in a new browser tab.'
+    : (db.templates[prov]||'{url}') === '{url}'
+      ? `${PROVIDERS[prov].name} has no desktop link format, so this opens the web link — on a phone with the app installed, that opens the app. Change it in Settings.`
+      : `Opens with <code>${esc(db.templates[prov])}</code> (change in Settings).`;
+}
+function openEditor(c, prefill){
+  editing = c || null;
+  const f = $('#editForm'), d = c || prefill || {};
+  f.provider.innerHTML = Object.entries(PROVIDERS).map(([k,p]) => `<option value="${k}">${p.name}</option>`).join('');
+  f.url.value = d.url || ''; f.title.value = d.title || '';
+  f.provider.value = d.provider || (d.url ? detect(d.url) : 'chatgpt');
+  f.folder.value = d.folder ?? (ui.view === 'folder' ? ui.folder : '');
+  f.tags.value = (d.tags||[]).join(', '); f.notes.value = d.notes || '';
+  $('#editTitle').textContent = c ? 'Edit chat' : 'Add chat';
+  $('#delBtn').style.display = c ? '' : 'none';
+  setOpenIn(d.openIn || (f.provider.value === 'claude' ? 'app' : 'web'));
+  $('#editDlg').showModal();
+  (d.url ? (d.title ? f.tags : f.title) : f.url).focus();
+}
+function saveEditor(){
+  const f = $('#editForm');
+  let url = f.url.value.trim();
+  if (url && !/^[a-z]+:\/\//i.test(url)) url = 'https://' + url;
+  const data = { url, title: f.title.value.trim(), provider: f.provider.value,
+    folder: f.folder.value.trim().replace(/^\/+|\/+$/g,'').replace(/\s*\/\s*/g,'/'),
+    tags: [...new Set(f.tags.value.split(',').map(t => t.trim().toLowerCase().replace(/^#/,'')).filter(Boolean))],
+    notes: f.notes.value.trim(), openIn };
+  if (editing) Object.assign(editing, data);
+  else {
+    const dup = db.chats.find(c => c.url === url);
+    if (dup) { Object.assign(dup, data); toast('Already saved — updated it'); }
+    else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, ...data });
+  }
+  save(); render();
+}
+
+// ---------- events ----------
+$('#views').onclick = e => { const a = e.target.closest('[data-view]'); if (a){ ui.view = a.dataset.view; ui.sel = 0; closeSide(); render(); } };
+$('#folders').onclick = e => {
+  const del = e.target.closest('[data-delfolder]');
+  if (del){
+    e.stopPropagation();
+    const f = del.dataset.delfolder, n = db.chats.filter(c => c.folder===f || (c.folder||'').startsWith(f+'/')).length;
+    if (n && !confirm(`Remove folder "${f}"? Its ${n} chat(s) stay saved but become unfiled.`)) return;
+    db.chats.forEach(c => { if (c.folder===f || (c.folder||'').startsWith(f+'/')) c.folder = ''; });
+    db.folders = db.folders.filter(x => x !== f && !x.startsWith(f+'/'));
+    if (ui.view==='folder' && (ui.folder===f || ui.folder.startsWith(f+'/'))) ui.view = 'all';
+    save(); render(); return;
+  }
+  const a = e.target.closest('[data-folder]'); if (a){ ui.view='folder'; ui.folder=a.dataset.folder; ui.sel=0; closeSide(); render(); }
+};
+$('#tags').onclick = e => { const a = e.target.closest('[data-tag]'); if (a){ ui.view='tag'; ui.tag=a.dataset.tag; ui.sel=0; closeSide(); render(); } };
+$('#addFolder').onclick = () => {
+  const n = prompt('Folder name (use / for sub-folders, e.g. Work/Startup):', ui.view==='folder' ? ui.folder + '/' : '');
+  const f = (n||'').trim().replace(/^\/+|\/+$/g,'');
+  if (f){ if (!db.folders.includes(f)) db.folders.push(f); ui.view='folder'; ui.folder=f; save(); render(); }
+};
+$('#chips').onclick = e => { const b = e.target.closest('[data-prov]'); if (b){ const k=b.dataset.prov; ui.providers.has(k)?ui.providers.delete(k):ui.providers.add(k); ui.sel=0; render(); } };
+$('#list').onclick = e => {
+  if (e.target.closest('[data-open-settings]')) { e.preventDefault(); openSettings(); return; }
+  const card = e.target.closest('.card'); if (!card) return;
+  const c = db.chats.find(x => x.id === card.dataset.id), act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'pin'){ c.pinned = !c.pinned; save(); render(); }
+  else if (act === 'edit') openEditor(c);
+  else if (act === 'copy') navigator.clipboard?.writeText(c.url).then(() => toast('Link copied'), () => toast(c.url));
+  else openChat(c);
+};
+$('#q').oninput = e => { ui.q = e.target.value; ui.sel = 0; render(); };
+$('#addBtn').onclick = () => openEditor();
+$('#openAll').onclick = openAll;
+$('#menuBtn').onclick = () => $('#side').classList.toggle('open');
+function closeSide(){ $('#side').classList.remove('open'); }
+
+$('#editForm').url.addEventListener('input', e => { const p = detect(e.target.value.trim()); if (p !== 'other' || !editing) { $('#editForm').provider.value = p; setOpenIn(openIn); } });
+$('#editForm').provider.onchange = () => setOpenIn(openIn);
+$('#openInSeg').onclick = e => { const b = e.target.closest('button'); if (b) setOpenIn(b.dataset.v); };
+$('#editForm').onsubmit = e => { if (e.submitter?.value === 'ok') saveEditor(); };
+$('#cancelEdit').onclick = () => $('#editDlg').close();
+$('#delBtn').onclick = () => { if (editing && confirm(`Delete "${editing.title}"?`)) { db.chats = db.chats.filter(c => c !== editing); save(); render(); $('#editDlg').close(); } };
+
+document.addEventListener('keydown', e => {
+  if (document.querySelector('dialog[open]')) return;
+  const inSearch = document.activeElement === $('#q');
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !inSearch;
+  if (typing) return;
+  if (e.key === '/' && !inSearch){ e.preventDefault(); $('#q').focus(); $('#q').select(); return; }
+  if (e.key === 'n' && !inSearch && !e.metaKey && !e.ctrlKey){ e.preventDefault(); openEditor(); return; }
+  if (e.key === 'Escape' && inSearch){ $('#q').value=''; ui.q=''; $('#q').blur(); render(); return; }
+  const { list } = visible();
+  if (e.key === 'ArrowDown'){ e.preventDefault(); ui.sel = Math.min(ui.sel+1, list.length-1); render(); scrollSel(); }
+  if (e.key === 'ArrowUp'){ e.preventDefault(); ui.sel = Math.max(ui.sel-1, 0); render(); scrollSel(); }
+  if (e.key === 'Enter' && list[ui.sel]){ e.preventDefault(); openChat(list[ui.sel]); }
+});
+function scrollSel(){ document.querySelector('.card.sel')?.scrollIntoView({block:'nearest'}); }
+
+// ---------- settings ----------
+function openSettings(){
+  const here = location.href.split('#')[0];
+  $('#bookmarklet').href = `javascript:void(window.open(${JSON.stringify(here)}+'#add='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title),'_blank'))`;
+  renderTpl();
+  closeSide();
+  $('#setDlg').showModal();
+}
+function renderTpl(){
+  $('#tplRows').innerHTML = Object.entries(PROVIDERS).map(([k,p]) =>
+    `<label>${p.name} app link<input data-tpl="${k}" value="${esc(db.templates[k])}"></label>`).join('');
+}
+$('#openSettings').onclick = openSettings;
+$('#bookmarklet').onclick = e => { e.preventDefault(); toast('Drag this button to your bookmarks bar'); };
+$('#tplRows').oninput = e => { const k = e.target.dataset.tpl; if (k){ db.templates[k] = e.target.value.trim() || '{url}'; save(); } };
+$('#resetTpl').onclick = () => { db.templates = defaultTemplates(); save(); renderTpl(); };
+$('#closeSet').onclick = () => { $('#setDlg').close(); render(); };
+
+// ---------- backup ----------
+$('#exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `agent-mash-${new Date().toISOString().slice(0,10)}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const d = normalize(JSON.parse(await file.text()));
+    const known = new Set(db.chats.map(c => c.url));
+    const fresh = d.chats.filter(c => c.url && !known.has(c.url)).map(c => ({ id: uid(), created: Date.now(), lastOpened: 0, pinned:false, tags:[], folder:'', notes:'', openIn:'web', provider: detect(c.url), title: c.url, ...c }));
+    db.chats.push(...fresh);
+    db.folders = [...new Set([...db.folders, ...d.folders])];
+    save(); render(); toast(`Imported ${fresh.length} new chat(s)`);
+  } catch { toast('That file is not a valid Agent Mash backup'); }
+  e.target.value = '';
+};
+
+// ---------- capture via bookmarklet / share link (#add=URL&title=TITLE) ----------
+function handleHash(){
+  if (!location.hash.startsWith('#add=')) return;
+  const p = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, '', location.pathname + location.search);
+  const url = p.get('add'); if (!url) return;
+  const provider = detect(url);
+  const existing = db.chats.find(c => c.url === url);
+  openEditor(existing || null, existing ? null : { url, provider, title: cleanTitle(p.get('title'), provider) });
+}
+window.addEventListener('hashchange', handleHash);
+window.addEventListener('storage', e => { if (e.key === KEY){ db = load(); render(); } });
+
+render();
+handleHash();
+})();
+</script>
+</body>
+</html>
