@@ -351,7 +351,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
   <h3 id="editTitle">Add Chat</h3>
   <p class="sub" id="editSub">Paste a link from any AI chat.</p>
   <div class="form">
-    <div class="ai-bar" id="aiBar" hidden><svg class="i"><use href="#i-sparkles"/></svg><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
+    <div class="ai-bar" id="aiBar" hidden><span id="aiBarIcon" style="display:flex"><svg class="i"><use href="#i-sparkles"/></svg></span><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
     <label for="f-url">Link</label><input class="field" id="f-url" name="url" required placeholder="https://claude.ai/chat/…">
     <label for="f-title">Title</label><input class="field" id="f-title" name="title" required placeholder="What is this chat about?">
     <label for="f-prov">Provider</label><div class="prov-field"><span class="dot" id="provDot"></span><input class="field" id="f-prov" autocomplete="off" spellcheck="false" placeholder="Type a provider, e.g. ki → Kimi"></div>
@@ -531,6 +531,30 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
 const KEY = 'agentmash.v1';
 const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm';
 const CTX_MAX = 6000;
+const esc = s => String(s ?? '').replace(/[&<>"'`=]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','=':'&#61;'}[c]));
+/* ------------------------------------------------------------
+   Safe HTML. Every ${value} inside html`...` is escaped for HTML text and
+   quoted attributes, unless the value is itself SafeHTML (built by html`` or icon()).
+   All innerHTML writes go through setHTML(), which refuses plain strings, so
+   chat titles, notes, provider names and imported data always render as inert text.
+   ------------------------------------------------------------ */
+class SafeHTML { constructor(s){ this.s = s; } toString(){ return this.s; } }
+function htmlVal(v){
+  if (v instanceof SafeHTML) return v.s;
+  if (Array.isArray(v)) return v.map(htmlVal).join('');
+  if (v === null || v === undefined || v === false) return '';
+  return esc(v);
+}
+const html = (strings, ...vals) => new SafeHTML(strings.reduce((out, str, i) => out + str + (i < vals.length ? htmlVal(vals[i]) : ''), ''));
+function setHTML(el, safe){
+  if (!(safe instanceof SafeHTML)) throw new TypeError('setHTML only accepts SafeHTML');
+  el.innerHTML = safe.s;
+}
+const ICON_NAME = /^[a-z]+$/;
+const icon = (n, cls = 'i') => ICON_NAME.test(n) ? html`<svg class="${cls}"><use href="#i-${n}"/></svg>` : html``;
+/* Colors end up in style attributes, so only #rrggbb is ever accepted. */
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const safeColor = c => HEX_COLOR.test(String(c || '')) ? String(c) : '#8e8e93';
 /* Built-in AI providers (local list, no network). hosts may include a path prefix, e.g. "x.com/i/grok". */
 const BUILTIN_PROVIDERS = [
   ['chatgpt',    'ChatGPT',            '#10a37f', ['chatgpt.com','chat.openai.com'],                     'openai gpt'],
@@ -573,8 +597,9 @@ const APP_LINKS = { claude:'claude://claude.ai{path}' };   // verified: the Clau
 const SWATCHES = ['#10a37f','#d97757','#4285f4','#20b8cd','#ff7000','#1d9bf0','#e8b10a','#0f766e','#ef4444','#64748b','#14b8a6','#f97316','#0ea5e9','#84cc16'];
 const PROVIDERS = {};
 function registerProvider(key, p){
-  PROVIDERS[key] = { name:p.name, color:p.color, hosts:p.hosts || [], aliases:p.aliases || '', custom:!!p.custom,
-    letter: GLYPHS[key] || (p.name.match(/[A-Za-z0-9]/)?.[0] || '•').toUpperCase(), app: APP_LINKS[key] || '{url}' };
+  const name = String(p.name || key).slice(0, 40);
+  PROVIDERS[key] = { name, color:safeColor(p.color), hosts:(Array.isArray(p.hosts) ? p.hosts : []).map(String).slice(0, 10), aliases:String(p.aliases || '').slice(0, 200), custom:!!p.custom,
+    letter: GLYPHS[key] || (name.match(/[A-Za-z0-9]/)?.[0] || '•').toUpperCase(), app: APP_LINKS[key] || '{url}' };
 }
 BUILTIN_PROVIDERS.forEach(([k, name, color, hosts, aliases]) => registerProvider(k, { name, color, hosts, aliases }));
 registerProvider('other', { name:'Other', color:'#8e8e93' });
@@ -583,8 +608,6 @@ const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navi
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const icon = (n, cls='i') => `<svg class="${cls}"><use href="#i-${n}"/></svg>`;
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 /* ============================================================
@@ -813,14 +836,14 @@ function moveToEdge(c, top){
   if (db.settings.sort !== 'manual'){ db.settings.sort = 'manual'; toast('Switched to your own order'); }
   save(); render();
 }
-function hl(text, tokens){
+function hl(text, tokens){   // returns SafeHTML: the text is escaped first, then <mark> is added around matches
   let out = esc(text);
   for (const t of tokens){
     if (t.length < 2) continue;
     const re = new RegExp('(' + esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![^<]*>)', 'ig');
     out = out.replace(re, '<mark>$1</mark>');
   }
-  return out;
+  return new SafeHTML(out);
 }
 function snippet(c, tokens){
   // show the bit of the conversation that matched, when the match isn't visible elsewhere on the card
@@ -835,35 +858,35 @@ function snippet(c, tokens){
 /* ============================================================
    Render
    ============================================================ */
-function navItem({ attrs, ic, label, count, on, extra='' }){
-  return `<div class="nav-item ${on ? 'on' : ''}" ${attrs}>${ic}<span class="lbl">${label}</span>${extra}<span class="ct">${count ?? ''}</span></div>`;
+function navItem({ data = {}, title = '', indent = 0, ic, label, count, on, extra = '' }){
+  const attrs = Object.entries(data).map(([k, v]) => html` data-${k.replace(/[^a-z-]/g, '')}="${v}"`);
+  return html`<div class="nav-item ${on ? 'on' : ''}"${attrs}${title ? html` title="${title}"` : ''}${indent ? html` style="padding-left:${10 + indent * 16}px"` : ''}>${ic}<span class="lbl">${label}</span>${extra}<span class="ct">${count ?? ''}</span></div>`;
 }
 function render(){
   const n = { all: db.chats.length, recent: db.chats.filter(c => c.lastOpened).length, pinned: db.chats.filter(c => c.pinned).length, unfiled: db.chats.filter(c => !c.folder).length };
-  $('#nav-lib').innerHTML = [['all','all','All Chats'],['recent','clock','Recent'],['pinned','star','Pinned'],['unfiled','tray','Unfiled']]
-    .map(([v, ic, l]) => navItem({ attrs:`data-view="${v}" data-drop="${v}"`, ic:icon(ic), label:l, count:n[v], on: ui.view === v })).join('');
+  setHTML($('#nav-lib'), html`${[['all','all','All Chats'],['recent','clock','Recent'],['pinned','star','Pinned'],['unfiled','tray','Unfiled']]
+    .map(([v, ic, l]) => navItem({ data:{ view:v, drop:v }, ic:icon(ic), label:l, count:n[v], on: ui.view === v }))}`);
 
   const folders = allFolders();
-  $('#nav-folders').innerHTML = folders.map(f => {
-    const depth = f.split('/').length - 1;
-    return navItem({ attrs:`data-folder="${esc(f)}" data-drop="folder" style="padding-left:${10 + depth*16}px" title="${esc(f)}"`, ic:icon('folder'),
-      label:esc(f.split('/').pop()), count: db.chats.filter(c => inFolder(c, f)).length, on: ui.view === 'folder' && ui.folder === f,
-      extra:`<button class="x" data-delfolder="${esc(f)}" title="Remove folder">${icon('trash')}</button>` });
-  }).join('') || `<p class="hint" style="padding:2px 10px">Drag chats here, or type a folder like <code>Work/Startup</code> when adding one.</p>`;
-  $('#folderList').innerHTML = folders.map(f => `<option value="${esc(f)}">`).join('');
+  setHTML($('#nav-folders'), folders.length ? html`${folders.map(f => navItem({
+      data:{ folder:f, drop:'folder' }, title:f, indent: Math.min(6, f.split('/').length - 1), ic:icon('folder'),
+      label:f.split('/').pop(), count: db.chats.filter(c => inFolder(c, f)).length, on: ui.view === 'folder' && ui.folder === f,
+      extra:html`<button class="x" data-delfolder="${f}" title="Remove folder">${icon('trash')}</button>` }))}`
+    : html`<p class="hint" style="padding:2px 10px">Drag chats here, or type a folder like <code>Work/Startup</code> when adding one.</p>`);
+  setHTML($('#folderList'), html`${folders.map(f => html`<option value="${f}">`)}`);
 
   const tagCounts = {};
   db.chats.forEach(c => (c.tags||[]).forEach(t => tagCounts[t] = (tagCounts[t] || 0) + 1));
   const tags = Object.entries(tagCounts).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0])).slice(0, 30);
   $('#tagsHead').style.display = tags.length ? '' : 'none';
-  $('#nav-tags').innerHTML = tags.map(([t, c]) => navItem({ attrs:`data-tag="${esc(t)}"`, ic:icon('tag'), label:esc(t), count:c, on: ui.view === 'tag' && ui.tag === t })).join('');
+  setHTML($('#nav-tags'), html`${tags.map(([t, c]) => navItem({ data:{ tag:t }, ic:icon('tag'), label:t, count:c, on: ui.view === 'tag' && ui.tag === t }))}`);
 
   const barKeys = [...db.bar.filter(k => PROVIDERS[k])];
   if (ui.provider && !barKeys.includes(ui.provider)) barKeys.push(ui.provider);
   if (db.chats.some(c => c.provider === 'other') && !barKeys.includes('other')) barKeys.push('other');
-  $('#provSeg').innerHTML = `<button data-prov="" class="${!ui.provider ? 'on' : ''}">All</button>` +
+  setHTML($('#provSeg'), html`<button data-prov="" class="${!ui.provider ? 'on' : ''}">All</button>${
     barKeys.map(k => { const p = P(k), n = db.chats.filter(c => c.provider === k).length;
-      return `<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${esc(p.name)} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`; }).join('');
+      return html`<button data-prov="${k}" class="${ui.provider === k ? 'on' : ''}" title="${p.name} · ${n} chat${n === 1 ? '' : 's'} (right-click to remove from bar)"><span class="dot" style="background:${safeColor(p.color)}"></span>${p.name}</button>`; })}`);
 
   renderPrivacyBadge();
   renderBackupState();
@@ -877,44 +900,44 @@ function render(){
   $('#viewSub').textContent = ai ? `${list.length} found by Claude` : `${list.length} chat${list.length === 1 ? '' : 's'}${ui.provider ? ' · ' + P(ui.provider).name : ''}${ui.view === 'recent' ? '' : ' · ' + SORTS[db.settings.sort]}`;
   ui.sel = Math.min(ui.sel, Math.max(0, list.length - 1));
 
-  let html = '';
+  const parts = [];
   if (ui.q.trim().length >= 3 && db.settings.apiKey){
-    html += ai
-      ? `<div class="ai-row glass">${icon('sparkles')}<span class="t">Claude’s matches for “${esc(ui.q)}”</span><button class="pill" data-ai-clear>Show keyword results</button></div>`
-      : `<div class="ai-row glass">${ui.aiBusy ? '<span class="spin"></span>' : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? 'disabled' : ''}>Ask Claude <kbd style="opacity:.6">⇧↩</kbd></button></div>`;
+    parts.push(ai
+      ? html`<div class="ai-row glass">${icon('sparkles')}<span class="t">Claude’s matches for “${ui.q}”</span><button class="pill" data-ai-clear>Show keyword results</button></div>`
+      : html`<div class="ai-row glass">${ui.aiBusy ? html`<span class="spin"></span>` : icon('sparkles')}<span class="t">${ui.aiBusy ? 'Claude is reading your chats…' : 'Can’t find it? Claude can search by meaning.'}</span><button class="pill" data-ai-ask ${ui.aiBusy ? html`disabled` : ''}>Ask Claude <kbd style="opacity:.6">⇧↩</kbd></button></div>`);
   }
   if (!db.chats.length){
-    html += `<div class="empty glass"><img class="big" src="icon.svg" alt=""><h2>Save the conversations that matter</h2>
+    parts.push(html`<div class="empty glass"><img class="big" src="icon.svg" alt=""><h2>Save the conversations that matter</h2>
       <p>Click <b>Add</b> and paste a link from any AI chat,<br>or set up the one-click button in <a href="#" data-open-settings>Settings → Capture</a>.</p>
-      <p class="hint" style="margin-top:14px">${icon('lock')} No account. No server. Everything stays in this browser.</p></div>`;
+      <p class="hint" style="margin-top:14px">${icon('lock')} No account. No server. Everything stays in this browser.</p></div>`);
   } else if (!list.length){
-    html += `<div class="empty glass"><h2>No matches</h2><p>Try fewer words${ui.provider ? ', or switch the provider filter back to All' : ''}.</p></div>`;
+    parts.push(html`<div class="empty glass"><h2>No matches</h2><p>Try fewer words${ui.provider ? ', or switch the provider filter back to All' : ''}.</p></div>`);
   } else {
-    html += list.map((c, i) => card(c, i, tokens)).join('');
+    parts.push(...list.map((c, i) => card(c, i, tokens)));
   }
-  $('#grid').innerHTML = html;
+  setHTML($('#grid'), html`${parts}`);
 }
 function card(c, i, tokens){
   const p = P(c.provider);
   const native = IS_MOBILE || opensNative(c);   // on phones the web link itself opens the installed app
   const mode = c.openIn === 'app'
-    ? `<span class="chip mode" title="${native ? 'Opens in the ' + p.name + ' app' : 'Opens the website (no app link available here)'}">${icon('app')}${native ? 'App' : 'App → web'}</span>`
-    : `<span class="chip mode">${icon('globe')}Web</span>`;
+    ? html`<span class="chip mode" title="${native ? 'Opens in the ' + p.name + ' app' : 'Opens the website (no app link available here)'}">${icon('app')}${native ? 'App' : 'App → web'}</span>`
+    : html`<span class="chip mode">${icon('globe')}Web</span>`;
   const snip = snippet(c, tokens);
   const body = c.summary || c.notes;
-  return `<div class="card glass sheen ${i === ui.sel ? 'sel' : ''}" data-id="${c.id}" tabindex="-1">
+  return html`<div class="card glass sheen ${i === ui.sel ? 'sel' : ''}" data-id="${c.id}" tabindex="-1">
     <div class="card-actions">
       <button data-act="pin" class="${c.pinned ? 'on' : ''}" title="${c.pinned ? 'Unpin' : 'Pin'}">${icon(c.pinned ? 'starfill' : 'star')}</button>
       <button data-act="edit" title="Edit">${icon('pencil')}</button>
     </div>
     <div class="card-h">
-      <div class="av" style="background:${p.color}">${p.letter}</div>
+      <div class="av" style="background:${safeColor(p.color)}">${p.letter}</div>
       <div class="card-t"><b>${hl(c.title, tokens)}</b>
-        <small><span>${esc(p.name)}</span>·<span>${ago(c.lastOpened)}</span></small></div>
+        <small><span>${p.name}</span>·<span>${ago(c.lastOpened)}</span></small></div>
     </div>
-    ${body ? `<div class="sum">${hl(body, tokens)}</div>` : ''}
-    ${snip ? `<div class="sum" style="font-style:italic">“${hl(snip, tokens)}”</div>` : ''}
-    <div class="chips">${mode}${c.folder ? `<span class="chip">${hl(c.folder, tokens)}</span>` : ''}${(c.tags||[]).map(t => `<span class="chip">#${hl(t, tokens)}</span>`).join('')}</div>
+    ${body ? html`<div class="sum">${hl(body, tokens)}</div>` : ''}
+    ${snip ? html`<div class="sum" style="font-style:italic">“${hl(snip, tokens)}”</div>` : ''}
+    <div class="chips">${mode}${c.folder ? html`<span class="chip">${hl(c.folder, tokens)}</span>` : ''}${(c.tags||[]).map(t => html`<span class="chip">#${hl(t, tokens)}</span>`)}</div>
   </div>`;
 }
 
@@ -962,7 +985,7 @@ function setProv(k){
   provPicked = k;
   const p = P(k);
   $('#f-prov').value = k === 'other' ? '' : p.name;
-  $('#provDot').style.background = p.color;
+  $('#provDot').style.background = safeColor(p.color);
   setOpen(openIn);
 }
 function setOpen(v){
@@ -973,12 +996,12 @@ function setOpen(v){
   let msg;
   if (v === 'web') msg = 'Opens in a new browser tab.';
   else if (IS_MOBILE) msg = `Opens the link, and your phone hands it to the ${name} app if it's installed.`;
-  else if (!/^https?:/i.test(appLink(fake))) msg = `${icon('check')} Opens this exact chat in the ${name} desktop app.`;
+  else if (!/^https?:/i.test(appLink(fake))) msg = html`${icon('check')} Opens this exact chat in the ${name} desktop app.`;
   else if (provPicked === 'claude') msg = 'Only links like claude.ai/chat/… or claude.ai/project/… can open in the app. This one will open the website.';
   else if (provPicked === 'chatgpt') msg = 'The ChatGPT Mac app has no way to open a specific chat from a link, so this opens the website. On iPhone it opens the app.';
   else if (provPicked === 'gemini') msg = 'Gemini has no Mac app, so this opens the website. On a phone it opens the Gemini app.';
-  else msg = `${esc(name)} has no desktop app link, so this opens the website. On a phone, the link opens the app if one is installed.`;
-  $('#openHint').innerHTML = msg;
+  else msg = `${name} has no desktop app link, so this opens the website. On a phone, the link opens the app if one is installed.`;
+  setHTML($('#openHint'), html`${msg}`);
 }
 function openEditor(c, prefill){
   editing = c || null; openTouched = false;
@@ -1005,18 +1028,22 @@ function setAiBar(state, text){
   const bar = $('#aiBar');
   if (!db.settings.apiKey){
     bar.hidden = false;
-    $('#aiBarText').innerHTML = 'Add a Claude API key in Settings → AI to fill this in automatically.';
+    $('#aiBarText').textContent = 'Add a Claude API key in Settings → AI to fill this in automatically.';
     $('#aiRun').textContent = 'Set up'; $('#aiRun').dataset.mode = 'setup'; $('#aiRun').disabled = false;
-    bar.querySelector('svg, .spin').outerHTML = icon('sparkles');
+    setBarIcon(false);
     return;
   }
   bar.hidden = false;
   $('#aiRun').dataset.mode = 'run';
   const spinner = state === 'busy';
-  bar.querySelector('svg, .spin').outerHTML = spinner ? '<span class="spin"></span>' : icon('sparkles');
+  setBarIcon(spinner);
   $('#aiRun').disabled = spinner;
   $('#aiRun').textContent = state === 'done' ? 'Run again' : 'Fill in with Claude';
-  $('#aiBarText').innerHTML = text || (F.context.value.trim() ? 'Claude can read the conversation text and write the title, summary, tags and folder.' : 'Claude works best with conversation text. Use the bookmark button, or paste some below.');
+  setHTML($('#aiBarText'), html`${text || (F.context.value.trim() ? 'Claude can read the conversation text and write the title, summary, tags and folder.' : 'Claude works best with conversation text. Use the bookmark button, or paste some below.')}`);
+}
+function setBarIcon(spinning){
+  const slot = $('#aiBarIcon');
+  setHTML(slot, spinning ? html`<span class="spin"></span>` : icon('sparkles'));
 }
 function localSuggest(force){
   const text = [F.title.value, F.context.value].join('\n');
@@ -1039,9 +1066,9 @@ async function aiFill(){
     if (r.tags?.length) F.tags.value = r.tags.join(', ');
     if (r.folder !== undefined && (r.folder || !F.folder.value)) F.folder.value = cleanFolder(r.folder);
     F._aiKeywords = r.keywords || [];
-    setAiBar('done', `${icon('check')} Filled in by Claude. Change anything you like.`);
+    setAiBar('done', html`${icon('check')} Filled in by Claude. Change anything you like.`);
   } catch (e){
-    setAiBar('error', `<span style="color:var(--danger)">${esc(e.message)}</span>`);
+    setAiBar('error', html`<span style="color:var(--danger)">${e.message}</span>`);
   }
 }
 function saveEditor(){
@@ -1172,7 +1199,7 @@ async function bulkAnalyze(){
   if (!confirm(`Ask Claude to analyze ${todo.length} chat(s)? This uses your API credits.`)) return;
   let done = 0;
   for (const c of todo){
-    setStatus(`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Analyzing ${done + 1} of ${todo.length}: ${esc(c.title)}`);
+    setStatus(html`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Analyzing ${done + 1} of ${todo.length}: ${c.title}`);
     try {
       const r = await analyzeChat(c);
       c.summary = r.summary; c.keywords = r.keywords;
@@ -1180,18 +1207,18 @@ async function bulkAnalyze(){
       if (!c.folder && r.folder) c.folder = r.folder;
       if (genericTitle(c.title) || c.title === c.url) c.title = r.title;
       done++; save(); render();
-    } catch (e){ setStatus(`<span style="color:var(--danger)">${esc(e.message)}</span>`); return; }
+    } catch (e){ setStatus(html`<span style="color:var(--danger)">${e.message}</span>`); return; }
   }
-  setStatus(`${icon('check')} Analyzed ${done} chat(s).`);
+  setStatus(html`${icon('check')} Analyzed ${done} chat(s).`);
 }
-function setStatus(h){ $('#s-status').innerHTML = h; }
+function setStatus(h){ setHTML($('#s-status'), h instanceof SafeHTML ? h : html`${h}`); }
 
 /* ============================================================
    Context menu
    ============================================================ */
 function showMenu(x, y, items){
   const m = $('#menu');
-  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' : `<button data-i="${i}" class="${it.danger ? 'danger' : ''}">${icon(it.icon)}${esc(it.label)}</button>`).join('');
+  setHTML(m, html`${items.map((it, i) => it === '-' ? html`<hr>` : html`<button data-i="${i}" class="${it.danger ? 'danger' : ''}">${icon(it.icon)}${it.label}</button>`)}`);
   m.classList.add('on');
   const r = m.getBoundingClientRect();
   m.style.left = Math.min(x, innerWidth - r.width - 8) + 'px';
@@ -1254,10 +1281,10 @@ function attachCombo(input, opts){
     const el = $('#combo');
     const host = input.closest('dialog') || document.body;   // modal dialogs sit in the top layer, so the list must live inside them
     if (el.parentNode !== host) host.appendChild(el);
-    if (!combo.items.length){ el.innerHTML = '<div class="combo-empty">No match. Keep typing to add it.</div>'; }
-    else el.innerHTML = combo.items.map((it, i) => it.create
-      ? `<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}">${icon('plus')}<span>Add “${esc(it.create)}”</span><small>new provider</small></button>`
-      : `<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}"><span class="dot" style="background:${it.p.color}"></span><span>${esc(it.p.name)}</span><small>${esc(it.p.hosts[0] || '')}</small></button>`).join('');
+    if (!combo.items.length) setHTML(el, html`<div class="combo-empty">No match. Keep typing to add it.</div>`);
+    else setHTML(el, html`${combo.items.map((it, i) => it.create
+      ? html`<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}">${icon('plus')}<span>Add “${it.create}”</span><small>new provider</small></button>`
+      : html`<button type="button" data-i="${i}" class="${i === 0 ? 'on' : ''}"><span class="dot" style="background:${safeColor(it.p.color)}"></span><span>${it.p.name}</span><small>${it.p.hosts[0] || ''}</small></button>`)}`);
     const r = input.getBoundingClientRect();
     el.style.left = Math.min(r.left, innerWidth - 270) + 'px';
     el.style.top = (r.bottom + 6) + 'px';
@@ -1317,16 +1344,19 @@ function bookmarkletHref(){
 }
 function renderAppStatus(){
   const rows = [
-    ['ok', 'Claude desktop app: works', 'The app registers <code>claude://</code>, and its link handler opens <code>claude://claude.ai/chat/&lt;id&gt;</code> straight to that conversation (project links work too). Your browser may ask “Open Claude?” the first time. Tick “Always allow”.'],
-    ['no', 'ChatGPT desktop app: opens the website', 'The current ChatGPT Mac app only accepts <code>codex://</code> links for its own threads and shared links. It has no link that opens a regular chat, so these open in your browser. The iPhone and Android apps open chatgpt.com links directly.'],
+    ['ok', 'Claude desktop app: works', html`The app registers <code>claude://</code>, and its link handler opens <code>claude://claude.ai/chat/&lt;id&gt;</code> straight to that conversation (project links work too). Your browser may ask “Open Claude?” the first time. Tick “Always allow”.`],
+    ['no', 'ChatGPT desktop app: opens the website', html`The current ChatGPT Mac app only accepts <code>codex://</code> links for its own threads and shared links. It has no link that opens a regular chat, so these open in your browser. The iPhone and Android apps open chatgpt.com links directly.`],
     ['no', 'Gemini: opens the website', 'Google has no Gemini Mac app. On a phone, gemini.google.com links open the Gemini app.'],
   ];
-  $('#appStatus').innerHTML = rows.map(([s, t, d]) => `<div class="status-row"><span class="${s}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
+  setHTML($('#appStatus'), statusRows(rows));
+}
+function statusRows(rows){
+  return html`${rows.map(([s, t, d]) => html`<div class="status-row"><span class="${s === 'ok' ? 'ok' : 'no'}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`)}`;
 }
 function renderTpl(){
   const keys = [...new Set(['chatgpt','claude','gemini', ...db.bar, ...db.chats.map(c => c.provider)])].filter(k => k !== 'other' && PROVIDERS[k]);
-  $('#tplRows').innerHTML = keys.map(k =>
-    `<label>${esc(P(k).name)}</label><input class="field" data-tpl="${k}" value="${esc(db.templates[k] || P(k).app)}" spellcheck="false">`).join('');
+  setHTML($('#tplRows'), html`${keys.map(k =>
+    html`<label>${P(k).name}</label><input class="field" data-tpl="${k}" value="${db.templates[k] || P(k).app}" spellcheck="false">`)}`);
 }
 function storageBytes(){ try { return (localStorage.getItem(KEY) || '').length * 2; } catch { return 0; } }
 function fmtBytes(n){ return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB'; }
@@ -1344,7 +1374,7 @@ function renderPrivacyFacts(){
     ai ? ['no', 'Claude AI is on', 'Chat text is sent to Anthropic only when you analyze a chat or use Ask Claude. Remove the key in the AI tab to turn it off.']
        : ['ok', 'Claude AI is off', 'Nothing about your chats is sent anywhere.'],
   ];
-  $('#privacyFacts').innerHTML = rows.map(([s, t, d]) => `<div class="status-row"><span class="${s}">${icon(s === 'ok' ? 'check' : 'warn')}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
+  setHTML($('#privacyFacts'), statusRows(rows));
 }
 function openSettings(tab){
   renderPrivacyFacts(); renderBackupState(); renderPersist();
@@ -1352,7 +1382,7 @@ function openSettings(tab){
   $('#bookmarklet').href = bookmarkletHref();
   renderAppStatus(); renderTpl();
   $('#s-key').value = db.settings.apiKey; $('#s-model').value = db.settings.model; $('#s-auto').checked = db.settings.autoAI;
-  setStatus(db.settings.apiKey ? `${icon('check')} Claude is on.` : 'Claude is off. Search and suggestions still work without it.');
+  setStatus(db.settings.apiKey ? html`${icon('check')} Claude is on.` : 'Claude is off. Search and suggestions still work without it.');
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === db.settings.theme));
   if (tab) selectTab(tab);
   closeSide();
@@ -1371,7 +1401,7 @@ function applyTheme(){
 /* ============================================================
    Events
    ============================================================ */
-$('#addFolder').innerHTML = icon('folderplus');
+setHTML($('#addFolder'), icon('folderplus'));
 $('#nav-lib').onclick = e => { const a = e.target.closest('[data-view]'); if (a){ ui.view = a.dataset.view; resetSel(); } };
 $('#nav-tags').onclick = e => { const a = e.target.closest('[data-tag]'); if (a){ ui.view = 'tag'; ui.tag = a.dataset.tag; resetSel(); } };
 $('#nav-folders').onclick = e => {
@@ -1649,11 +1679,11 @@ $('#s-model').onchange = e => { db.settings.model = e.target.value; save(); };
 $('#s-auto').onchange = e => { db.settings.autoAI = e.target.checked; save(); };
 $('#s-test').onclick = async () => {
   db.settings.apiKey = $('#s-key').value.trim(); clientCache = null; save(); render();
-  setStatus('<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Checking…');
+  setStatus(html`<span class="spin" style="display:inline-block;vertical-align:-2px"></span> Checking…`);
   try {
     const r = await askClaudeJSON({ system:'Reply with JSON only.', user:'Return {"ok": true}.', schema:{ type:'object', additionalProperties:false, required:['ok'], properties:{ ok:{ type:'boolean' } } }, maxTokens: 1000 });
-    setStatus(r.ok ? `${icon('check')} Connected. Claude is ready.` : 'Connected, but got an unexpected reply.');
-  } catch (e){ setStatus(`<span style="color:var(--danger)">${esc(e.message)}</span>`); }
+    setStatus(r.ok ? html`${icon('check')} Connected. Claude is ready.` : 'Connected, but got an unexpected reply.');
+  } catch (e){ setStatus(html`<span style="color:var(--danger)">${e.message}</span>`); }
 };
 $('#s-bulk').onclick = bulkAnalyze;
 $('#themeSeg').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; db.settings.theme = b.dataset.v; save(); applyTheme(); $$('#themeSeg button').forEach(x => x.classList.toggle('on', x === b)); };
@@ -1789,8 +1819,8 @@ function renderBackupState(){
   $('#backupItem').title = b.changed ? `You have changes since your last backup (${b.when.toLowerCase()}). Click to download one.` : `Backed up ${b.when.toLowerCase()}. Click to download a fresh copy.`;
   const card = $('#backupCard'); if (!card) return;
   card.classList.toggle('stale', b.stale);
-  card.innerHTML = `${icon(b.changed ? 'warn' : 'check')}<div><b>${!db.settings.lastBackup ? 'No backup yet' : 'Last backup: ' + b.when}</b>
-    <span>${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} in your library · ${b.changed ? 'some changes are not in a backup yet' : 'everything is backed up'}</span></div>`;
+  setHTML(card, html`${icon(b.changed ? 'warn' : 'check')}<div><b>${!db.settings.lastBackup ? 'No backup yet' : 'Last backup: ' + b.when}</b>
+    <span>${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} in your library · ${b.changed ? 'some changes are not in a backup yet' : 'everything is backed up'}</span></div>`);
 }
 function exportBackup(){
   const out = { app:'agent-mash', version:1, exported:new Date().toISOString(), ...db, settings: { ...db.settings, apiKey: '' } };
@@ -1820,8 +1850,8 @@ async function renderPersist(){
   const el = $('#persistInfo'); if (!el) return;
   if (!navigator.storage?.persisted){ el.textContent = 'This browser doesn’t report whether storage is protected. Keep regular backups.'; return; }
   const ok = await navigator.storage.persisted();
-  el.innerHTML = ok ? `${icon('check')} This browser has agreed not to clear your library to free up space.`
-    : `This browser may clear site data when space runs low. <button class="pill" id="persistBtn" style="margin-left:6px">Ask to keep it</button>`;
+  setHTML(el, ok ? html`${icon('check')} This browser has agreed not to clear your library to free up space.`
+    : html`This browser may clear site data when space runs low. <button class="pill" id="persistBtn" style="margin-left:6px">Ask to keep it</button>`);
   $('#persistBtn')?.addEventListener('click', async () => { await navigator.storage.persist?.(); renderPersist(); });
 }
 $('#exportBtn').onclick = exportBackup;
