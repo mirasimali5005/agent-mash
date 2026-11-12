@@ -8,6 +8,14 @@ if (window.top !== window.self) return;   // never run inside someone else's fra
 const KEY = 'agentmash.v1';
 const SDK_URL = './vendor/anthropic-sdk-1.3.0.mjs';   // self-hosted copy, see vendor/README.md
 const CTX_MAX = 6000;
+/* ------------------------------------------------------------
+   Origin isolation. Browser storage is shared by everything on the same origin
+   (scheme + host + port), not by path. Set CANONICAL_ORIGIN to the dedicated
+   address once Agent Mash has one (see docs/HOSTING.md); copies served anywhere
+   else then show a "moved" notice with export instructions.
+   ------------------------------------------------------------ */
+const CANONICAL_ORIGIN = '';   // e.g. 'https://agent-mash.pages.dev'
+const SHARED_HOST = /\.github\.io$/i.test(location.hostname) && location.pathname.replace(/\/index\.html$/, '/') !== '/';
 const CAPTURE_MARK = 'AGENTMASH-CAPTURE-1\n';
 const esc = s => String(s ?? '').replace(/[&<>"'`=]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','=':'&#61;'}[c]));
 /* ------------------------------------------------------------
@@ -1069,8 +1077,15 @@ function renderPrivacyFacts(){
     ['ok', `${db.chats.length} chat${db.chats.length === 1 ? '' : 's'} stored on this device`, `Using ${fmtBytes(storageBytes())} of this browser's local storage.`],
     ai ? ['no', 'Claude AI is on', 'Chat text is sent to Anthropic only when you analyze a chat or use Ask Claude. Remove the key in the AI tab to turn it off.']
        : ['ok', 'Claude AI is off', 'Nothing about your chats is sent anywhere.'],
+    SHARED_HOST
+      ? ['no', 'This copy runs on a shared web address', `${location.hostname} is shared with every other project hosted under it, and browsers let all of them read the same storage. Use Agent Mash from its own address for full isolation.`]
+      : ['ok', 'Running on its own web address', `${location.host} isn't shared with other sites, so no other site can read your library.`],
   ];
   setHTML($('#privacyFacts'), statusRows(rows));
+}
+function renderMovedNotice(){
+  if (!CANONICAL_ORIGIN || location.origin === CANONICAL_ORIGIN) return;
+  toast(`Agent Mash has moved to ${CANONICAL_ORIGIN.replace(/^https:\/\//, '')}. Download a backup here, then restore it there.`, 'Back up now', exportBackup, 20000);
 }
 function openSettings(tab){
   renderPrivacyFacts(); renderBackupState(); renderPersist();
@@ -1666,6 +1681,7 @@ window.addEventListener('hashchange', handleHash);
 applyTheme();
 render();
 if (purgedStoredKey) setTimeout(() => toast('Security update: your Claude API key was saved by an earlier version. It has been deleted from this browser. Please revoke it in the Anthropic Console and create a new one.', 'Open AI settings', () => openSettings('ai'), 15000), 600);
+else if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN) setTimeout(renderMovedNotice, 600);
 else if (!db.settings.welcomed && !/^#(add=|capture)/.test(location.hash)) $('#welcomeDlg').showModal(); else maybeRemindBackup();
 handleHash();
 })();
