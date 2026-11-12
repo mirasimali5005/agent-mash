@@ -636,29 +636,164 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 /* ============================================================
    Storage
    ============================================================ */
-let db = load();
+let db;   // loaded below, after the schema it is validated against
 const ui = { view:'all', folder:null, tag:null, provider:null, q:'', sel:0, aiIds:null, aiBusy:false };
 let editing = null, openIn = 'web', provPicked = 'chatgpt', openTouched = false;
-Object.entries(db.customProviders).forEach(([k, p]) => registerProvider(k, { ...p, custom:true }));
 
-function normalize(d){
-  d = d || {};
+/* ============================================================
+   Data schema. Everything that comes from storage or a backup file passes
+   through here. Only known fields of the right type and size survive.
+   strict:true (backup import): any problem rejects the whole file.
+   strict:false (this browser's own storage): bad records are dropped or trimmed.
+   ============================================================ */
+const LIMITS = { fileBytes: 20 * 1024 * 1024, chats: 10000, id: 40, title: 300, summary: 2000, notes: 5000, folder: 200, tag: 40, tags: 30,
+  keywords: 30, keyword: 60, folders: 2000, providers: 200, providerName: 40, hosts: 10, host: 120, bar: 60 };
+const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const CHAT_KEYS = new Set(['id','url','title','provider','folder','tags','notes','summary','context','keywords','openIn','pinned','lastOpened','created','order']);
+const TOP_KEYS = new Set(['app','version','exported','chats','folders','customProviders','bar','settings','templates']);   // "templates" = ignored legacy field
+const SETTING_KEYS = new Set(['apiKey','model','autoAI','theme','sort','lastBackup','backupSig','remind','welcomed','themeV2']);
+const MODELS = ['claude-opus-5-5','claude-sonnet-5-5','claude-haiku-5-5'];
+class SchemaError extends Error {}
+function isPlainObject(v){ return v !== null && typeof v === 'object' && !Array.isArray(v) && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null); }
+function checkKeys(obj, allowed, where, strict){
+  for (const k of Object.keys(obj)){
+    if (BAD_KEYS.has(k)) throw new SchemaError(`forbidden key "${k}" in ${where}`);
+    if (!allowed.has(k) && strict) throw new SchemaError(`unknown field "${k.slice(0, 40)}" in ${where}`);
+  }
+}
+function vStr(v, max, where, strict, fallback = ''){
+  if (v === undefined || v === null) return fallback;
+  if (typeof v !== 'string'){ if (strict) throw new SchemaError(`${where} must be text`); return fallback; }
+  if (v.length > max){ if (strict) throw new SchemaError(`${where} is too long (max ${max} characters)`); return v.slice(0, max); }
+  return v;
+}
+function vNum(v, where, strict, fallback = 0){
+  if (v === undefined || v === null) return fallback;
+  if (typeof v !== 'number' || !Number.isFinite(v)){ if (strict) throw new SchemaError(`${where} must be a number`); return fallback; }
+  return v;
+}
+function vBool(v, where, strict, fallback = false){
+  if (v === undefined || v === null) return fallback;
+  if (typeof v !== 'boolean'){ if (strict) throw new SchemaError(`${where} must be true or false`); return fallback; }
+  return v;
+}
+function vStrList(v, maxItems, maxLen, where, strict){
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v)){ if (strict) throw new SchemaError(`${where} must be a list`); return []; }
+  if (v.length > maxItems){ if (strict) throw new SchemaError(`${where} has too many items (max ${maxItems})`); v = v.slice(0, maxItems); }
+  return v.map((x, i) => vStr(x, maxLen, `${where}[${i}]`, strict)).filter(Boolean);
+}
+function vFolder(v, where, strict){
+  const f = vStr(v, LIMITS.folder, where, strict).trim().replace(/^\/+|\/+$/g, '').replace(/\s*\/\s*/g, '/');
+  if (f.split('/').length > 8){ if (strict) throw new SchemaError(`${where} is nested too deeply`); return f.split('/').slice(0, 8).join('/'); }
+  return f;
+}
+function sanitizeChat(c, i, strict){
+  const where = `chat #${i + 1}`;
+  if (!isPlainObject(c)) throw new SchemaError(`${where} is not an object`);
+  checkKeys(c, CHAT_KEYS, where, strict);
+  const url = safeChatUrl(vStr(c.url, MAX_URL, `${where} link`, strict));
+  if (!url) throw new SchemaError(`${where} has a link that isn't a plain https:// address`);
+  const provider = vStr(c.provider, 48, `${where} provider`, strict, 'other');
   return {
-    chats: (d.chats || []).map((c, i) => ({ tags:[], keywords:[], folder:'', notes:'', summary:'', context:'', openIn:'web', pinned:false, lastOpened:0, created:Date.now(), order:i, ...c })),
-    folders: d.folders || [],
-    customProviders: d.customProviders || {},
-    bar: d.bar || ['chatgpt','claude','gemini'],
-    settings: Object.assign({ apiKey:'', model:'claude-opus-5-5', autoAI:true, theme:'dark', sort:'manual', lastBackup:0, backupSig:'', remind:true }, d.settings || {}, d.settings?.themeV2 ? {} : { theme:'dark', themeV2:true }),
+    id: /^[a-z0-9]{6,40}$/.test(c.id) ? c.id : uid(),
+    url,
+    title: vStr(c.title, LIMITS.title, `${where} title`, strict).trim() || url,
+    provider: /^[a-z0-9-]{1,48}$/.test(provider) ? provider : 'other',
+    folder: vFolder(c.folder, `${where} folder`, strict),
+    tags: vStrList(c.tags, LIMITS.tags, LIMITS.tag, `${where} tags`, strict).map(t => t.trim().toLowerCase()).filter(Boolean),
+    keywords: vStrList(c.keywords, LIMITS.keywords, LIMITS.keyword, `${where} keywords`, strict),
+    notes: vStr(c.notes, LIMITS.notes, `${where} notes`, strict),
+    summary: vStr(c.summary, LIMITS.summary, `${where} summary`, strict),
+    context: vStr(c.context, CTX_MAX, `${where} conversation text`, strict),
+    openIn: c.openIn === 'app' ? 'app' : 'web',
+    pinned: vBool(c.pinned, `${where} pinned`, strict),
+    lastOpened: Math.max(0, vNum(c.lastOpened, `${where} lastOpened`, strict)),
+    created: Math.max(0, vNum(c.created, `${where} created`, strict, Date.now())),
+    order: vNum(c.order, `${where} order`, strict, i),
   };
 }
+function sanitizeProviders(v, strict){
+  const out = Object.create(null);
+  if (v === undefined || v === null) return out;
+  if (!isPlainObject(v)) throw new SchemaError('custom providers must be an object');
+  const entries = Object.entries(v);
+  if (entries.length > LIMITS.providers) throw new SchemaError('too many custom providers');
+  for (const [k, p] of entries){
+    if (BAD_KEYS.has(k)) throw new SchemaError(`forbidden key "${k}" in custom providers`);
+    try {
+      if (!/^x-[a-z0-9-]{1,46}$/.test(k)) throw new SchemaError(`invalid custom provider id "${k.slice(0, 40)}"`);
+      if (!isPlainObject(p)) throw new SchemaError(`custom provider ${k} is not an object`);
+      checkKeys(p, new Set(['name','color','hosts']), `custom provider ${k}`, strict);
+      const name = vStr(p.name, LIMITS.providerName, `custom provider ${k} name`, strict).trim();
+      if (!name) throw new SchemaError(`custom provider ${k} has no name`);
+      if (p.color !== undefined && !HEX_COLOR.test(String(p.color))) throw new SchemaError(`custom provider ${k} color must look like #12ab34`);
+      const hosts = vStrList(p.hosts, LIMITS.hosts, LIMITS.host, `custom provider ${k} hosts`, strict).map(h => h.toLowerCase());
+      if (hosts.some(h => !/^[a-z0-9.-]+\.[a-z]{2,}(\/[a-z0-9._~\/-]*)?$/.test(h))) throw new SchemaError(`custom provider ${k} has an invalid website`);
+      out[k] = { name, color: safeColor(p.color), hosts };
+    } catch (e){ if (strict) throw e; }
+  }
+  return out;
+}
+function sanitizeSettings(v, strict){
+  const st = isPlainObject(v) ? v : {};
+  checkKeys(st, SETTING_KEYS, 'settings', strict);
+  return {
+    apiKey: '',                                   // never trusted from storage or files
+    model: MODELS.includes(st.model) ? st.model : 'claude-opus-5-5',
+    autoAI: st.autoAI !== false,
+    theme: ['dark','light','auto'].includes(st.theme) && st.themeV2 ? st.theme : 'dark',
+    themeV2: true,
+    sort: ['manual','recent','added','name'].includes(st.sort) ? st.sort : 'manual',
+    lastBackup: Math.max(0, vNum(st.lastBackup, 'settings.lastBackup', false)),
+    backupSig: typeof st.backupSig === 'string' ? st.backupSig.slice(0, 80) : '',
+    remind: st.remind !== false,
+    welcomed: st.welcomed === true,
+  };
+}
+function sanitizeLibrary(d, { strict = false } = {}){
+  if (d === undefined || d === null) d = {};
+  if (!isPlainObject(d)) throw new SchemaError('the file is not an Agent Mash backup');
+  checkKeys(d, TOP_KEYS, 'the backup', strict);
+  if (strict && !Array.isArray(d.chats)) throw new SchemaError('the file has no list of chats');
+  const rawChats = Array.isArray(d.chats) ? d.chats : [];
+  if (rawChats.length > LIMITS.chats) throw new SchemaError(`too many chats (max ${LIMITS.chats})`);
+  const chats = [];
+  rawChats.forEach((c, i) => { try { chats.push(sanitizeChat(c, i, strict)); } catch (e){ if (strict) throw e; } });
+  const ids = new Set();
+  chats.forEach(c => { while (ids.has(c.id)) c.id = uid(); ids.add(c.id); });
+  return {
+    chats,
+    folders: vStrList(d.folders, LIMITS.folders, LIMITS.folder, 'folders', strict).map(f => vFolder(f, 'folder', strict)).filter(Boolean),
+    customProviders: sanitizeProviders(d.customProviders, strict),
+    bar: vStrList(d.bar, LIMITS.bar, 48, 'provider bar', strict).filter(k => /^[a-z0-9-]{1,48}$/.test(k)),
+    settings: sanitizeSettings(d.settings, strict),
+  };
+}
+function normalize(d){
+  try {
+    const lib = sanitizeLibrary(d, { strict:false });
+    if (!d || !Array.isArray(d.bar)) lib.bar = ['chatgpt','claude','gemini'];
+    return lib;
+  } catch { return sanitizeLibrary({}, { strict:false }); }
+}
 function load(){
-  try { const raw = localStorage.getItem(KEY); if (raw) return normalize(JSON.parse(raw)); } catch {}
-  return normalize();
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch {}
+  if (!raw) return normalize();
+  try { return normalize(JSON.parse(raw)); }
+  catch {
+    // Unreadable data is set aside instead of being overwritten by the next save.
+    try { localStorage.setItem(KEY + '.unreadable-' + Date.now(), raw); } catch {}
+    return normalize();
+  }
 }
 function save(){
-  try { localStorage.setItem(KEY, JSON.stringify(db)); }
-  catch { toast('Couldn’t save. Browser storage is full or blocked.'); }
+  try { localStorage.setItem(KEY, JSON.stringify(db)); return true; }
+  catch { toast('Couldn’t save. Browser storage is full or blocked.'); return false; }
 }
+db = load();
+Object.entries(db.customProviders).forEach(([k, p]) => registerProvider(k, { ...p, custom:true }));
 
 /* ============================================================
    Helpers
@@ -1862,20 +1997,37 @@ function exportBackup(){
   db.settings.lastBackup = Date.now(); db.settings.backupSig = chatSig(); save(); render(); renderBackupState();
   toast(`Backup downloaded: ${db.chats.length} chat(s)`);
 }
+/* A backup file is untrusted input: size-checked, fully validated, then merged in one step. */
 async function importBackup(file){
-  try {
-    const raw = JSON.parse(await file.text());
-    if (!raw || !Array.isArray(raw.chats)) throw new Error('bad');
-    const d = normalize(raw);
-    const known = new Set(db.chats.map(c => normUrl(c.url)));
-    const top = Math.max(0, ...db.chats.map(c => c.order));
-    const fresh = d.chats.filter(c => c.url && !known.has(normUrl(c.url))).map((c, i) => ({ ...c, id: uid(), order: top + 1 + i, provider: c.provider || detect(c.url), title: c.title || c.url }));
-    db.chats.push(...fresh);
-    db.folders = [...new Set([...db.folders, ...d.folders])];
-    for (const [k, p] of Object.entries(d.customProviders || {})) if (!db.customProviders[k]){ db.customProviders[k] = p; registerProvider(k, { ...p, custom:true }); }
-    save(); render(); renderBackupState();
-    toast(fresh.length ? `Restored ${fresh.length} chat(s) from the backup` : 'You already have every chat in that backup');
-  } catch { toast('That file isn’t an Agent Mash backup'); }
+  if (file.size > LIMITS.fileBytes) return toast('That file is too large to be an Agent Mash backup (20 MB max)');
+  let raw;
+  try { raw = JSON.parse(await file.text()); } catch { return toast('That file isn’t valid JSON, so nothing was imported'); }
+  let d;
+  try { d = sanitizeLibrary(raw, { strict:true }); }
+  catch (e){ return toast(`Backup rejected, nothing was imported: ${e instanceof SchemaError ? e.message : 'unreadable file'}`, '', null, 7000); }
+
+  const prev = JSON.stringify(db);
+  const next = JSON.parse(prev);
+  const known = new Set(next.chats.map(c => normUrl(c.url)));
+  const top = Math.max(0, ...next.chats.map(c => c.order));
+  const fresh = [];
+  for (const c of d.chats){
+    const key = normUrl(c.url);
+    if (known.has(key)) continue;
+    known.add(key);
+    fresh.push({ ...c, id: uid(), order: top + 1 + fresh.length });
+  }
+  if (next.chats.length + fresh.length > LIMITS.chats) return toast(`Restoring would exceed ${LIMITS.chats} chats, so nothing was imported`);
+  next.chats.push(...fresh);
+  next.folders = [...new Set([...next.folders, ...d.folders])];
+  const newProviders = Object.entries(d.customProviders).filter(([k]) => !next.customProviders[k]);
+  for (const [k, p] of newProviders) next.customProviders[k] = p;
+
+  db = next;
+  if (!save()){ db = JSON.parse(prev); return toast('Couldn’t save the restored chats (storage full?), so nothing was changed'); }
+  for (const [k, p] of newProviders) registerProvider(k, { ...p, custom:true });
+  render(); renderBackupState();
+  toast(fresh.length ? `Restored ${fresh.length} chat(s) from the backup` : 'You already have every chat in that backup');
 }
 async function renderPersist(){
   const el = $('#persistInfo'); if (!el) return;
