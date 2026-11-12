@@ -355,22 +355,23 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
   <p class="sub" id="editSub">Paste a link from any AI chat.</p>
   <div class="form">
     <div class="ai-bar" id="aiBar" hidden><span id="aiBarIcon" style="display:flex"><svg class="i"><use href="#i-sparkles"/></svg></span><span class="t" id="aiBarText"></span><button type="button" class="pill" id="aiRun">Fill in with Claude</button></div>
-    <label for="f-url">Link</label><input class="field" id="f-url" name="url" required placeholder="https://claude.ai/chat/…">
-    <label for="f-title">Title</label><input class="field" id="f-title" name="title" required placeholder="What is this chat about?">
+    <label for="f-url">Link</label><input class="field" id="f-url" name="url" required maxlength="2048" placeholder="https://claude.ai/chat/…">
+    <label for="f-title">Title</label><input class="field" id="f-title" name="title" required maxlength="300" placeholder="What is this chat about?">
     <label for="f-prov">Provider</label><div class="prov-field"><span class="dot" id="provDot"></span><input class="field" id="f-prov" autocomplete="off" spellcheck="false" placeholder="Type a provider, e.g. ki → Kimi"></div>
-    <label for="f-folder">Folder</label><input class="field" id="f-folder" name="folder" list="folderList" placeholder="e.g. Work/Startup">
-    <label for="f-tags">Tags</label><input class="field" id="f-tags" name="tags" placeholder="research, pricing, essay">
-    <label for="f-summary" class="top">Summary</label><textarea class="field" id="f-summary" name="summary" rows="2" placeholder="What was this chat about? (Claude can write this)"></textarea>
-    <label for="f-notes" class="top">My notes</label><textarea class="field" id="f-notes" name="notes" rows="2" placeholder="Anything you'd search for later"></textarea>
+    <label for="f-folder">Folder</label><input class="field" id="f-folder" name="folder" maxlength="200" list="folderList" placeholder="e.g. Work/Startup">
+    <label for="f-tags">Tags</label><input class="field" id="f-tags" name="tags" maxlength="1200" placeholder="research, pricing, essay">
+    <label for="f-summary" class="top">Summary</label><textarea class="field" id="f-summary" name="summary" maxlength="2000" rows="2" placeholder="What was this chat about? (Claude can write this)"></textarea>
+    <label for="f-notes" class="top">My notes</label><textarea class="field" id="f-notes" name="notes" maxlength="5000" rows="2" placeholder="Anything you'd search for later"></textarea>
     <label>Open in</label>
     <div><div class="seg" id="openPick"><button type="button" data-v="web"><svg class="i"><use href="#i-globe"/></svg>Website</button><button type="button" data-v="app"><svg class="i"><use href="#i-app"/></svg>Desktop app</button></div>
       <p class="hint" id="openHint" style="margin-top:6px"></p></div>
     <span></span>
     <details class="ctx" id="ctxBox"><summary id="ctxSum">Conversation text (optional)</summary>
-      <textarea class="field" id="f-context" name="context" rows="5" placeholder="Paste part of the conversation here. It's searchable, and Claude uses it to understand the chat. The bookmark button fills this in automatically."></textarea>
+      <textarea class="field" id="f-context" name="context" maxlength="6000" rows="5" placeholder="Paste part of the conversation here. It's searchable, and Claude uses it to understand the chat. The bookmark button fills this in automatically."></textarea>
     </details>
   </div>
   <datalist id="folderList"></datalist>
+  <p class="hint" id="saveError" role="alert" style="color:var(--danger);margin-top:10px" hidden></p>
   <div class="sheet-foot">
     <button type="button" class="pill" id="delBtn" style="color:var(--danger)"><svg class="i"><use href="#i-trash"/></svg>Delete</button>
     <span class="flex"></span>
@@ -448,6 +449,7 @@ code{font:11.5px ui-monospace, SFMono-Regular, Menlo, monospace;background:var(-
     <div class="row" style="margin-top:10px"><button class="pill primary" id="exportBtn"><svg class="i"><use href="#i-download"/></svg>Download backup</button><button class="pill" id="importBtn"><svg class="i"><use href="#i-upload"/></svg>Restore from backup…</button></div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
     <p class="hint" style="margin-top:8px">Restoring adds chats you don't have yet. Nothing is overwritten. You can also drop a backup file onto the window.</p>
+    <p class="hint" style="margin-top:4px"><b>Backups and exports are not encrypted.</b> They contain your saved conversation text in plain form, so keep them somewhere private and don't share them.</p>
     <h4>Export for notes apps</h4>
     <p>Take your library into Obsidian, Logseq, Apple Notes or any Markdown editor. Each chat becomes a note with its link, summary, tags, your notes and the captured conversation.</p>
     <div class="row"><button class="pill" id="mdVault"><svg class="i"><use href="#i-folder"/></svg>Obsidian vault (.zip)</button><button class="pill" id="mdSingle"><svg class="i"><use href="#i-download"/></svg>One Markdown file</button></div>
@@ -804,11 +806,28 @@ function load(){
     return normalize();
   }
 }
+let lastSynced = null;   // the exact string this window last read from or wrote to storage
+let libRev = 0;          // bumps whenever the library changes, used to cache the backup fingerprint
 function save(){
-  try { localStorage.setItem(KEY, JSON.stringify(db)); return true; }
-  catch { toast('Couldn’t save. Browser storage is full or blocked.'); return false; }
+  const str = JSON.stringify(db);
+  try { localStorage.setItem(KEY, str); lastSynced = str; libRev++; return true; }
+  catch {
+    // Never pretend a change was kept: go back to what is actually stored.
+    try { const stored = localStorage.getItem(KEY); db = stored ? normalize(JSON.parse(stored)) : db; } catch {}
+    libRev++;
+    toast('Couldn’t save: browser storage is full or blocked. Your last change was not kept.', '', null, 7000);
+    if (typeof render === 'function') render();
+    return false;
+  }
+}
+/* Pick up writes from another window before changing anything. */
+function syncFromStorage(){
+  let raw = null; try { raw = localStorage.getItem(KEY); } catch {}
+  if (raw && raw !== lastSynced){ db = normalize(JSON.parse(raw)); lastSynced = raw; libRev++; return true; }
+  return false;
 }
 db = load();
+try { lastSynced = localStorage.getItem(KEY); } catch {}
 if (purgedStoredKey) save();   // rewrites storage without the old key
 Object.entries(db.customProviders).forEach(([k, p]) => registerProvider(k, { ...p, custom:true }));
 
@@ -1188,7 +1207,7 @@ function setOpen(v){
   setHTML($('#openHint'), html`${msg}`);
 }
 function openEditor(c, prefill){
-  editing = c || null; openTouched = false;
+  editing = c || null; openTouched = false; $('#saveError').hidden = true;
   const d = c || prefill || {};
   F.url.value = d.url || ''; F.title.value = d.title || ''; F.folder.value = d.folder ?? (ui.view === 'folder' ? ui.folder : '');
   F.tags.value = (d.tags || []).join(', '); F.summary.value = d.summary || ''; F.notes.value = d.notes || ''; F.context.value = d.context || '';
@@ -1262,6 +1281,10 @@ function saveEditor(){
     F.url.reportValidity();
     return false;
   }
+  $('#saveError').hidden = true;
+  syncFromStorage();                                      // another window may have changed things
+  const before = JSON.stringify(db);
+  const target = editing ? db.chats.find(c => c.id === editing.id) : null;
   const context = F.context.value.trim().slice(0, CTX_MAX);
   const data = {
     url, title: F.title.value.trim() || url, provider: provPicked, folder: cleanFolder(F.folder.value), tags: parseTags(F.tags.value),
@@ -1269,15 +1292,31 @@ function saveEditor(){
   };
   data.keywords = [...new Set([...(F._aiKeywords || editing?.keywords || []), ...keywordsFrom(data.title + ' ' + data.summary + ' ' + context, 10)])].slice(0, 20);
   F._aiKeywords = null;
-  if (editing) Object.assign(editing, data);
+  let note = '';
+  if (target) Object.assign(target, data);
   else {
     const dup = db.chats.find(c => normUrl(c.url) === normUrl(url));
-    if (dup) { Object.assign(dup, data); toast('You’d already saved this chat, so it was updated'); }
-    else db.chats.unshift({ id: uid(), created: Date.now(), lastOpened: 0, pinned: false, order: Math.min(0, ...db.chats.map(c => c.order)) - 1, ...data });
+    if (dup){ Object.assign(dup, data); note = 'You’d already saved this chat, so it was updated'; }
+    else {
+      if (editing) note = 'This chat was deleted in another window, so it was saved again';
+      db.chats.unshift({ id: editing?.id || uid(), created: editing?.created || Date.now(), lastOpened: 0, pinned: false, order: Math.min(0, ...db.chats.map(c => c.order)) - 1, ...data });
+    }
   }
   if (!db.bar.includes(data.provider) && data.provider !== 'other') db.bar.push(data.provider);
+  const str = JSON.stringify(db);
+  let ok = false;
+  try { localStorage.setItem(KEY, str); lastSynced = str; libRev++; ok = true; } catch {}
+  if (!ok){
+    db = JSON.parse(before);                               // nothing half-applied
+    $('#saveError').textContent = 'Couldn’t save: browser storage is full or blocked. Your text is still here. Free up space (export a backup, then delete chats you don’t need) and try again.';
+    $('#saveError').hidden = false;
+    render();
+    return false;
+  }
   if (db.chats.length === 1) navigator.storage?.persist?.().catch(() => {});
-  save(); render();
+  render();
+  if (note) toast(note);
+  return true;
 }
 
 /* ============================================================
@@ -1927,7 +1966,7 @@ function exportSingleMarkdown(){
     lines.push(chatToMarkdown(c, { frontmatter:false, level:3 }), '---', '');
   }
   downloadBlob(new Blob([lines.join('\n')], { type:'text/markdown' }), `agent-mash-${isoDay(Date.now())}.md`);
-  toast(`Exported ${db.chats.length} chat(s) as Markdown`);
+  toast(`Exported ${db.chats.length} chat(s) as Markdown. The file isn’t encrypted, so keep it private.`, '', null, 5000);
 }
 function exportVault(){
   if (!db.chats.length) return toast('Your library is empty');
@@ -1947,7 +1986,7 @@ function exportVault(){
   for (const [f, items] of index) idx.push(`## ${f}`, '', ...items, '');
   files.unshift({ name: `${root}/Agent Mash index.md`, text: idx.join('\n') });
   downloadBlob(zipFiles(files), `agent-mash-vault-${isoDay(Date.now())}.zip`);
-  toast(`Exported ${db.chats.length} note(s). Unzip into your Obsidian vault.`);
+  toast(`Exported ${db.chats.length} note(s). Unzip into your Obsidian vault. The files aren’t encrypted.`, '', null, 5000);
 }
 function downloadBlob(blob, name){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
@@ -1983,13 +2022,22 @@ $('#mdSingle').onclick = exportSingleMarkdown;
 /* ============================================================
    Backup
    ============================================================ */
+/* Fingerprint of the full library content (everything except "last opened" times),
+   using two independent 32-bit hashes, cached until the library changes. */
+let sigCache = { rev: -1, sig: '' };
 function chatSig(){
-  // cheap fingerprint of everything worth backing up (ignores "last opened" times)
-  let h = 5381;
-  const str = JSON.stringify(db.chats.map(c => [c.id, c.url, c.title, c.folder, c.tags, c.notes, c.summary, c.order, c.pinned, c.provider, c.openIn, (c.context || '').length]))
-    + JSON.stringify([db.folders, db.customProviders]);
-  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
-  return String(h >>> 0);
+  if (sigCache.rev === libRev) return sigCache.sig;
+  const str = JSON.stringify([db.chats.map(({ lastOpened, ...rest }) => rest), db.folders, db.customProviders, db.bar]);
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++){
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const sig = 'v2-' + str.length + '-' + (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36);
+  sigCache = { rev: libRev, sig };
+  return sig;
 }
 function backupState(){
   const st = db.settings, n = db.chats.length;
@@ -2015,7 +2063,7 @@ function exportBackup(){
   a.download = `agent-mash-backup-${isoDay(Date.now())}.json`; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1500);
   db.settings.lastBackup = Date.now(); db.settings.backupSig = chatSig(); save(); render(); renderBackupState();
-  toast(`Backup downloaded: ${db.chats.length} chat(s)`);
+  toast(`Backup downloaded: ${db.chats.length} chat(s). It isn’t encrypted, so keep the file private.`, '', null, 5000);
 }
 /* A backup file is untrusted input: size-checked, fully validated, then merged in one step. */
 async function importBackup(file){
@@ -2069,7 +2117,17 @@ function maybeRemindBackup(){
 }
 
 /* other tabs/windows of this app stay in sync */
-window.addEventListener('storage', e => { if (e.key === KEY){ db = load(); render(); } });
+window.addEventListener('storage', e => {
+  if (e.key !== KEY) return;
+  db = load(); lastSynced = e.newValue; libRev++;
+  Object.entries(db.customProviders).forEach(([k, p]) => { if (!PROVIDERS[k]) registerProvider(k, { ...p, custom:true }); });
+  if (editing && $('#editDlg').open){
+    const fresh = db.chats.find(c => c.id === editing.id);
+    if (fresh) editing = fresh;
+    else toast('This chat was deleted in another window. Saving will add it back.');
+  }
+  render();
+});
 
 /* ============================================================
    Capture: #add=URL&title=TITLE&ctx=TEXT (from the bookmark button)
