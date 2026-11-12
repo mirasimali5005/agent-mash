@@ -4,6 +4,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 
 const KEY = 'agentmash.v1';
+const BASE = process.env.BASE_URL || 'http://localhost:4173';
 const XSS = '<img src=x onerror="window.__xss=1"><svg onload="window.__xss=1"></svg>"\'><script>window.__xss=1</script>';
 const CLAUDE_URL = 'https://claude.ai/chat/3f2b8c1e-1a2b-4c3d-8e9f-0123456789ab';
 
@@ -187,11 +188,11 @@ test.describe('5. No chat content leaves the browser without explicit approval',
     const outside = [];
     await page.route('**/*', route => {
       const url = route.request().url();
-      if (!url.startsWith('http://localhost:4173')) outside.push(url);
+      if (!url.startsWith(BASE)) outside.push(url);
       if (url.startsWith('https://api.anthropic.com')) {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }) });
       }
-      return url.startsWith('http://localhost:4173') ? route.continue() : route.abort();
+      return url.startsWith(BASE) ? route.continue() : route.abort();
     });
     await open(page);
     await page.locator('#openSettings').click();
@@ -333,6 +334,7 @@ test.describe('8. The CSP blocks unauthorized scripts and network destinations',
   });
 
   test('the app refuses to render inside a frame', async ({ page }) => {
+    test.skip(!!process.env.BASE_URL, 'fixture is not deployed; the live site is covered by the header test');
     await page.goto('/tests/fixtures/frame.html');
     const frame = page.frameLocator('#f');
     await expect(frame.locator('html')).toHaveCSS('display', 'none');

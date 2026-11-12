@@ -1,5 +1,7 @@
 # Hosting Agent Mash on its own origin
 
+**Current home: https://agent-mash.pages.dev** (Cloudflare Pages, free plan). Deploy with `npm run deploy`.
+
 Browsers isolate storage by **origin** (scheme + host + port), not by path. Today Agent Mash runs at
 `https://mirasimali5005.github.io/agent-mash/`, and every other project published under
 `mirasimali5005.github.io` shares that origin. Any of them can read Agent Mash's `localStorage`,

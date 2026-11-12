@@ -13,7 +13,8 @@ const CTX_MAX = 6000;
    address once Agent Mash has one (see docs/HOSTING.md); copies served anywhere
    else then show a "moved" notice with export instructions.
    ------------------------------------------------------------ */
-const CANONICAL_ORIGIN = '';   // e.g. 'https://agent-mash.pages.dev'
+const CANONICAL_ORIGIN = 'https://agent-mash.pages.dev';   // the dedicated origin; copies served elsewhere show a 'moved' notice
+const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const SHARED_HOST = /\.github\.io$/i.test(location.hostname) && location.pathname.replace(/\/index\.html$/, '/') !== '/';
 const CAPTURE_MARK = 'AGENTMASH-CAPTURE-1\n';
 const esc = s => String(s ?? '').replace(/[&<>"'`=]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','=':'&#61;'}[c]));
@@ -1086,7 +1087,7 @@ function renderPrivacyFacts(){
   setHTML($('#privacyFacts'), statusRows(rows));
 }
 function renderMovedNotice(){
-  if (!CANONICAL_ORIGIN || location.origin === CANONICAL_ORIGIN) return;
+  if (!CANONICAL_ORIGIN || location.origin === CANONICAL_ORIGIN || IS_LOCAL) return;
   toast(`Agent Mash has moved to ${CANONICAL_ORIGIN.replace(/^https:\/\//, '')}. Download a backup here, then restore it there.`, 'Back up now', exportBackup, 20000);
 }
 function openSettings(tab){
@@ -1683,7 +1684,7 @@ window.addEventListener('hashchange', handleHash);
 applyTheme();
 render();
 if (purgedStoredKey) setTimeout(() => toast('Security update: your Claude API key was saved by an earlier version. It has been deleted from this browser. Please revoke it in the Anthropic Console and create a new one.', 'Open AI settings', () => openSettings('ai'), 15000), 600);
-else if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN) setTimeout(renderMovedNotice, 600);
+else if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN && !IS_LOCAL) setTimeout(renderMovedNotice, 600);
 else if (!db.settings.welcomed && !/^#(add=|capture)/.test(location.hash)) $('#welcomeDlg').showModal(); else maybeRemindBackup();
 handleHash();
 })();

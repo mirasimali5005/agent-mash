@@ -9,7 +9,11 @@ Save the ChatGPT, Claude, Gemini, Kimi, DeepSeek and Grok chats that matter (34 
 - **Works across every AI you use**, opening each chat in its website or desktop app.
 - **Simple and durable.** Back up to JSON, or export Markdown and an Obsidian-ready vault, in plain files you can open years from now.
 
-**Live:** https://mirasimali5005.github.io/agent-mash/ (styled like a native macOS app; install it to your Dock)
+**Live:** https://agent-mash.pages.dev (free on Cloudflare Pages, on an address of its own; styled like a native macOS app, and you can install it to your Dock)
+
+> **Moved from `mirasimali5005.github.io/agent-mash`.** Browser storage doesn't follow a site to a new address. On the old site, click **Back up** in the sidebar, then open the new site and drop that file onto the window. Also drag the new site's **Save to Agent Mash** button (Settings → Capture) to your bookmarks bar to replace the old one.
+
+Agent Mash is free to use. The Claude features are optional: leave the API key blank and nothing is ever sent to an AI service. If you add your own key, Anthropic bills that usage to your account.
 ## What it does
 - **One-click capture.** A bookmark button saves the current chat's link, title and conversation text, so you don't have to describe each chat yourself.
 - **Understands chats.** Without AI, it pulls keywords from the conversation and suggests a folder. With an optional Claude API key, Claude writes the title, summary, tags, search keywords and folder.
@@ -39,7 +43,7 @@ App link formats can be changed in Settings → Apps.
 - **Backups are untrusted input.** They're size-limited, strictly schema-validated and imported all-or-nothing.
 - **Strict Content Security Policy.** No inline code, no `eval`, no CDN; network access only to Anthropic. The SDK is self-hosted in `vendor/`.
 - **Exports aren't encrypted.** Backups and Markdown exports are plaintext, so keep them private.
-- **Shared origin:** on `*.github.io` project pages, other projects on the same host share browser storage. See [docs/HOSTING.md](docs/HOSTING.md) to move to an origin of its own.
+- **Isolated origin:** served from `agent-mash.pages.dev`, which no other project shares. Cloudflare sends the security headers from `_headers` (CSP with `frame-ancestors`, HSTS, `nosniff`, COOP/CORP, Permissions-Policy). See [docs/HOSTING.md](docs/HOSTING.md).
 
 ## Run locally
 ```bash
@@ -55,7 +59,8 @@ npm run check
 ```
 - `npm run lint` runs ESLint (`no-unsanitized`, `no-eval`, `no-script-url`) and `scripts/check-security.mjs`. The script checks the CSP, that there's no inline code or styles, a single HTML sink, no CDN code and no stored API key.
 - `npm test` runs the Playwright security regression suite in `tests/security.spec.js`, which follows the pre-launch checklist.
-- GitHub Actions (`.github/workflows/ci.yml`) runs all of this on every push. **GitHub Pages only deploys from `main` after the checks pass.**
+- `npm run deploy` runs every check, builds `_site/` (site files only) and publishes it to Cloudflare Pages. **It stops if any check fails.** You need a one-time `npx wrangler login` first.
+- GitHub Actions (`.github/workflows/ci.yml`) runs the same checks on every push.
 
 ## Branches
 Each major change has its own branch, so you can go back to it:
@@ -78,5 +83,6 @@ Each major change has its own branch, so you can go back to it:
 | `security/csp` | Strict CSP + Trusted Types, no inline styles, `_headers`, frame guard |
 | `security/origin-isolation` | Shared-origin warning, moved notice, hosting guide |
 | `test/security-regression` | Playwright security tests, ESLint security rules, repo checks, CI-gated deploy |
+| `deploy/cloudflare-pages` | Cloudflare Pages hosting at agent-mash.pages.dev, tested `npm run deploy`, moved notice on the old address |
 
 `main` contains all of them and is what GitHub Pages publishes.

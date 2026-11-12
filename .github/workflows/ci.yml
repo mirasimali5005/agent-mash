@@ -53,9 +53,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Collect only the site files (no tests, tooling or docs)
         run: |
-          mkdir _site
-          cp index.html app.js app.css theme.js manifest.webmanifest icon.svg icon-192.png icon-512.png apple-touch-icon.png _site/
-          mkdir _site/vendor && cp vendor/*.mjs _site/vendor/
+          bash scripts/build-site.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
