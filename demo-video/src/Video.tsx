@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AbsoluteFill, Easing, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig,
 } from 'remotion';
+import { Workflow, WORKFLOW_FRAMES } from './Workflow';
 
 /* ------------------------------------------------------------------
    Design tokens (match the app: matte black, graphite, no purple)
@@ -15,7 +16,7 @@ const WIN_TOP = 236;
 
 /* scene lengths in frames (30 fps) */
 const SCENES = {
-  intro: 80, problem: 110, library: 150, capture: 170, search: 135, providers: 110, drag: 160, openApp: 110, privacy: 165, outro: 130,
+  intro: 80, workflow: WORKFLOW_FRAMES, library: 150, capture: 170, search: 135, providers: 110, drag: 160, openApp: 110, privacy: 165, outro: 130,
 };
 const OVERLAP = 12;   // scenes crossfade instead of dipping to black
 export const TOTAL_FRAMES = Object.values(SCENES).reduce((a, b) => a + b, 0) - OVERLAP * (Object.keys(SCENES).length - 1);
@@ -208,7 +209,7 @@ const Library: React.FC = () => (
 
 const Capture: React.FC = () => (
   <AbsoluteFill>
-    <Caption title="Save a chat in one click" sub="The Save button grabs the link, title and conversation. Paste it in, done." />
+    <Caption title="Or capture it in one click" sub="The Save button grabs the link, title and conversation, so you can search inside it later." />
     <AppWindow
       shots={[{ src: 'capture-paste', from: 0, to: 66 }, { src: 'capture-editor', from: 66 }]}
       zoom={{ from: 1, to: 1.18, at: [0.52, 0.72], start: 80, end: 165 }}
@@ -298,7 +299,7 @@ const Outro: React.FC = () => {
    Timeline
    ------------------------------------------------------------------ */
 const ORDER: [keyof typeof SCENES, React.FC][] = [
-  ['intro', Intro], ['problem', Problem], ['library', Library], ['capture', Capture], ['search', Search],
+  ['intro', Intro], ['workflow', Workflow], ['library', Library], ['capture', Capture], ['search', Search],
   ['providers', Providers], ['drag', Drag], ['openApp', OpenApp], ['privacy', Privacy], ['outro', Outro],
 ];
 

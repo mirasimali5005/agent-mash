@@ -132,5 +132,59 @@ await page.waitForSelector('.card');
 await hideToast();
 await shot('library-light');
 
+/* ------------------------------------------------------------------
+   Main workflow: paste a copied ChatGPT link into Agent Mash, save it.
+   Coordinates of the things the cursor clicks are written to src/wf-coords.json.
+   ------------------------------------------------------------------ */
+const KYOTO_URL = 'https://chatgpt.com/c/6824a1f0-0b7e-4c1d-9a2f-3e5d8c7b1a90';
+const lib2 = JSON.parse(JSON.stringify(lib));
+lib2.chats = lib2.chats.filter(c => !c.title.startsWith('Kyoto'));
+lib2.chats.forEach(c => { if (c.title.startsWith('Wedding')) c.openIn = 'web'; });
+const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: 'dark' });
+await ctx2.addInitScript(([key, lib]) => {
+  if (!sessionStorage.getItem('seeded')) { localStorage.setItem(key, JSON.stringify(lib)); sessionStorage.setItem('seeded', '1'); }
+  window.open = () => ({ opener: null });
+}, ['agentmash.v1', lib2]);
+const p2 = await ctx2.newPage();
+const shot2 = async (name) => { await p2.waitForTimeout(450); await p2.screenshot({ path: path.join(OUT, name + '.png') }); console.log('captured', name); };
+const box = async (sel) => { const b = await p2.locator(sel).first().boundingBox(); return { x: (b.x + b.width / 2) / 1440, y: (b.y + b.height / 2) / 900, w: b.width / 1440, h: b.height / 900 }; };
+const hide2 = () => p2.evaluate(() => document.querySelector('#toast')?.classList.remove('on'));
+const coords = {};
+
+await p2.goto(BASE);
+await p2.waitForSelector('.card');
+await hide2();
+coords.addBtn = await box('#addBtn');
+await shot2('wf-library-before');
+
+await p2.locator('#addBtn').click();
+await p2.waitForSelector('#editDlg[open]');
+coords.urlField = await box('#f-url');
+await shot2('wf-add-empty');
+
+await p2.fill('#f-url', KYOTO_URL);
+await p2.locator('#f-url').dispatchEvent('input');
+await p2.locator('#f-title').focus();
+coords.titleField = await box('#f-title');
+await shot2('wf-add-pasted');
+
+await p2.locator('#f-title').pressSequentially('Kyoto trip on a budget', { delay: 10 });
+await p2.fill('#f-folder', 'Personal/Travel');
+await p2.fill('#f-tags', 'travel, japan');
+await p2.locator('#f-notes').fill('Haruka express from Kansai, ICOCA card, ramen near the station');
+coords.saveBtn = await box('#editForm button[value=ok]');
+await shot2('wf-add-filled');
+
+await p2.locator('#editForm button[value=ok]').click();
+await p2.waitForSelector('#editDlg', { state: 'hidden' });
+await hide2();
+coords.newCard = await box('.card >> nth=0');
+coords.claudeCard = await box('.card:has-text("Wedding speech")');
+await shot2('wf-library-after');
+
+const { writeFileSync } = await import('node:fs');
+writeFileSync(path.join(here, 'src', 'wf-coords.json'), JSON.stringify({ kyotoUrl: KYOTO_URL, ...coords }, null, 2));
+console.log('wrote src/wf-coords.json');
+
 await browser.close();
 server?.kill();

@@ -13,7 +13,7 @@ Save the ChatGPT, Claude, Gemini, Kimi, DeepSeek and Grok chats that matter (34 
 
 > **Moved from `mirasimali5005.github.io/agent-mash`.** Browser storage doesn't follow a site to a new address. On the old site, click **Back up** in the sidebar, then open the new site and drop that file onto the window. Also drag the new site's **Save to Agent Mash** button (Settings → Capture) to your bookmarks bar to replace the old one.
 
-**Demo video (40 s):** [demo-video/out/agent-mash-demo.mp4](demo-video/out/agent-mash-demo.mp4)
+**Demo video (53 s):** [demo-video/out/agent-mash-demo.mp4](demo-video/out/agent-mash-demo.mp4)
 
 Agent Mash is free to use. The Claude features are optional: leave the API key blank and nothing is ever sent to an AI service. If you add your own key, Anthropic bills that usage to your account.
 ## What it does
@@ -88,4 +88,5 @@ Each major change has its own branch, so you can go back to it:
 | `deploy/cloudflare-pages` | Cloudflare Pages hosting at agent-mash.pages.dev, tested `npm run deploy`, moved notice on the old address |
 
 `main` contains all of them and is what GitHub Pages publishes.
-| `feature/demo-video` | 40-second Remotion demo video built from real screenshots of the live site |
+| `feature/demo-video` | Remotion demo video built from real screenshots of the live site |
+| `feature/demo-video-workflow` | Video opens with the main flow: copy a chat link, paste and save it, click to return, open a Claude chat |
