@@ -1,6 +1,7 @@
 {
   "name": "agent-mash",
   "private": true,
+  "license": "MIT",
   "description": "Private library for your AI chats. Static site; these dependencies are for tests and checks only.",
   "scripts": {
     "serve": "python3 -m http.server 4173 --bind 127.0.0.1",

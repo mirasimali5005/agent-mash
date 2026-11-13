@@ -13,7 +13,7 @@ Where to post the demo video, in what order, ready-to-edit drafts for each place
 
 | To do | Why |
 |---|---|
-| **Add a LICENSE file** (MIT is the usual choice for a project like this) | The repo is public but has no license, so legally no one may reuse the code. HN and Reddit readers will ask about this. |
+| ~~Add a LICENSE file~~ Done: MIT, in `LICENSE` | Without one, legally no one may reuse the code. HN and Reddit readers ask about this. |
 | **Upload the video to YouTube** (public, or unlisted first) | Product Hunt takes a YouTube link for its video rather than an MP4 file, and YouTube is easy to embed anywhere. |
 | **Embed the video in the GitHub README** | Edit README.md on github.com and drag the MP4 into the editor. GitHub uploads it and shows a player inline. |
 | **Make a vertical 9:16 cut (optional)** | Needed for YouTube Shorts, TikTok and Instagram Reels. The workflow part (copy → paste → reopen) is the strongest clip. |

@@ -86,8 +86,12 @@ Each major change has its own branch, so you can go back to it:
 | `security/origin-isolation` | Shared-origin warning, moved notice, hosting guide |
 | `test/security-regression` | Playwright security tests, ESLint security rules, repo checks, CI-gated deploy |
 | `deploy/cloudflare-pages` | Cloudflare Pages hosting at agent-mash.pages.dev, tested `npm run deploy`, moved notice on the old address |
-
-`main` contains all of them and is what GitHub Pages publishes.
 | `feature/demo-video` | Remotion demo video built from real screenshots of the live site |
 | `feature/demo-video-workflow` | Video opens with the main flow: copy a chat link, paste and save it, click to return, open a Claude chat |
 | `docs/launch-kit` | Launch plan and ready-to-edit posts for each platform ([docs/LAUNCH.md](docs/LAUNCH.md)) |
+| `docs/license` | MIT license |
+
+`main` contains all of them and is what `npm run deploy` publishes to Cloudflare Pages.
+
+## License
+[MIT](LICENSE). You're free to use, change and share the code, as long as the license notice stays with it.
