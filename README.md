@@ -90,3 +90,4 @@ Each major change has its own branch, so you can go back to it:
 `main` contains all of them and is what GitHub Pages publishes.
 | `feature/demo-video` | Remotion demo video built from real screenshots of the live site |
 | `feature/demo-video-workflow` | Video opens with the main flow: copy a chat link, paste and save it, click to return, open a Claude chat |
+| `docs/launch-kit` | Launch plan and ready-to-edit posts for each platform ([docs/LAUNCH.md](docs/LAUNCH.md)) |
