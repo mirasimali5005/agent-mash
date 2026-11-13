@@ -142,9 +142,9 @@
     <h4>What stays here</h4>
     <p>Your chats, folders, tags, notes, captured conversation text and settings are kept in this browser's local storage. Clearing this site's data in the browser removes them, so keep a backup.</p>
     <h4>The only things that ever go over the network</h4>
-    <p>• <b>The app itself.</b> GitHub Pages sends the page files once. It never receives your chats.<br>
+    <p>• <b>The app itself.</b> The host (Cloudflare Pages) sends the page files. It never receives your chats.<br>
        • <b>Opening a chat.</b> Your browser goes to that AI's website or app, just like clicking a bookmark.<br>
-       • <b>Claude AI, only if you turn it on.</b> When you analyze a chat or use Ask Claude, that chat's text goes to <code>api.anthropic.com</code>, and the Claude SDK loads from <code>cdn.jsdelivr.net</code>. Without a key, neither happens.</p>
+       • <b>Claude AI, only if you turn it on.</b> When you analyze a chat or use Ask Claude, that chat's text goes to <code>api.anthropic.com</code>, using the Claude SDK that ships with Agent Mash itself. Without a key, nothing is sent.</p>
     <h4>Start over</h4>
     <p>Remove everything Agent Mash has stored in this browser. <a href="#" id="toBackup">Download a backup</a> first if you might want it back.</p>
     <div class="row"><button class="pill danger-text" id="eraseAll"><svg class="i"><use href="#i-trash"/></svg>Erase all data in this browser…</button></div>
